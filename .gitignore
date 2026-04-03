@@ -1,0 +1,35 @@
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Build output ─────────────────────────────────────────────────────────────
+dist/
+build/
+coverage/
+
+# ─── Generated / bulk AI assets — never commit; regenerate from Workshop ──────
+public/generated/
+
+# ─── Environment secrets ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+# Keep the example file so new devs know what's needed
+!.env.example
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+server.log
+
+# ─── OS / Editor artifacts ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+
+# ─── Export archives (regenerated from Workshop) ─────────────────────────────
+*.zip
+public/exports/
+
+# ─── TypeScript build info ────────────────────────────────────────────────────
+*.tsbuildinfo
