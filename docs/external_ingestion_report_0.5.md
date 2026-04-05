@@ -1,103 +1,96 @@
-# External Ingestion Report — board-combat-alpha-0.5
+# External Ingestion Report — board-combat-alpha-0.5 (Corrected)
 **Date:** 2026-04-05
-**Milestone:** board-combat-alpha-0.5 (Workshop-only ingestion pass)
+**Milestone:** board-combat-alpha-0.5 (Workshop-only ingestion pass — corrected)
 **Branch:** feat/external-ingestion-0.5
 **Repo:** archon-workshop
-**Status:** ✅ COMPLETE
+**Status:** ✅ COMPLETE — TRUE EXTERNAL INGESTION
 
 ---
 
-## Scope
+## Correction Notice
 
-Workshop-only external asset pack ingestion. No archon-game changes. Game integration remains blocked.
+The first commit on this branch (`57d9603`) documented an incorrect ingestion pass:
+- `build-ingest-zip.mjs` repackaged all 235 existing Workshop assets into a ZIP and imported them back (self-repack loop)
+- This was **not** an external ingestion — it was a loopback
+- That commit is superseded by the current corrected pass
+
+This document reflects the **true external ingestion** using the real vendor pack on disk.
+
+---
+
+## Real Input Files
+
+| File | Path | Size | Modified |
+|------|------|------|----------|
+| ZIP | `C:\Dev\ingest\archon-external-pack-v1.zip` | **2,394 bytes** | 2026-04-05 14:48:59 |
+| Seed | `C:\Dev\ingest\external-manifest-seed.json` | **1,844 bytes** | 2026-04-05 14:48:59 |
+
+---
+
+## Contract Compatibility Assessment
+
+The real ZIP uses a **different structure** than `import-pack-from-path` expects:
+
+| Difference | Real ZIP | Endpoint Expects |
+|------------|----------|-----------------|
+| Manifest filename | `external-manifest-seed.json` | `combat-pack-manifest.json` |
+| Asset directories | `audio/`, `images/` | `assets/` |
+
+**Decision:** Narrow adapter implemented — `ingest-external-pack.mjs`
+- No changes to `server.ts`
+- No backend redesign
+- Adapter reads ZIP directly, extracts to correct Workshop dirs, appends to live manifest
 
 ---
 
 ## What Was Ingested
 
-**Source:** `archon-external-pack-v1.zip` (85.30 MB)
-**Path at ingestion:** `C:\Dev\ingest\archon-external-pack-v1.zip`
-**Packaged from:** archon-workshop approved asset baseline (board-combat-alpha-0.4 state)
+**8 external assets from `archon-external-pack-v1`:**
 
-| Metric | Value |
-|--------|-------|
-| Assets packaged into ZIP | 235 |
-| Assets imported via endpoint | 235 |
-| Import failures | 0 |
-| Manifest after rehydrate | 235 |
-| verify-manifest valid | ✅ true |
-| combat_ready | ✅ true |
-| verify-manifest errors (final) | 0 |
-| Baseline assets impacted | 0 |
+| Asset ID | Type | Category | Faction |
+|----------|------|----------|---------|
+| sfx-magic-bolt-v1 | audio | sfx | neutral |
+| sfx-melee-hit-heavy-v1 | audio | sfx | neutral |
+| sfx-teleport-dark-v1 | audio | dark | dark |
+| sfx-teleport-light-v1 | audio | sfx | light |
+| combat-status-stun-v1 | image | status | neutral |
+| spell-heal-icon-v1 | image | spell | light |
+| spell-imprison-icon-v1 | image | spell | dark |
+| ui-button-hover-v1 | image | ui | neutral |
 
 ---
 
-## Ingestion Pipeline Executed
+## What Was Preserved (Baseline)
 
-| Step | Endpoint / Tool | Result |
+**235 baseline assets — zero overwritten, zero demoted, zero modified.**
+
+The adapter uses append-only logic: it never touches existing manifest entries.
+
+---
+
+## Ingestion Pipeline
+
+| Step | Tool / Endpoint | Result |
 |------|----------------|--------|
-| Build ZIP | `build-ingest-zip.mjs` | ✅ 235 assets, 85.30 MB |
-| Build seed | `build-ingest-zip.mjs` | ✅ `external-manifest-seed.json` (114 KB) |
-| Validate ZIP path | File exists check | ✅ `C:\Dev\ingest\archon-external-pack-v1.zip` |
-| Validate seed path | File exists check | ✅ `C:\Dev\ingest\external-manifest-seed.json` |
-| Import | `POST /api/import-pack-from-path` | ✅ 235 imported, 0 failed |
-| Rehydrate | `GET /api/rehydrate-manifest` | ✅ 235 approved |
-| Materialize | `POST /api/materialize-assets` | ✅ 235 verified, 20 thumbnails generated |
-| Verify | `GET /api/verify-manifest` | ✅ valid=true, combat_ready=true, 0 errors |
+| Validate inputs | File existence check | ✅ Both files present, non-zero |
+| Contract check | ZIP structure inspection | ⚠ Incompatible → narrow adapter used |
+| Extract + copy | `ingest-external-pack.mjs` | ✅ 8 imported, 0 failed |
+| Manifest append | `ingest-external-pack.mjs` | ✅ Appended 8 entries (source_pack tagged) |
+| Thumbnail generate | `verify-manifest-local.mjs` | ✅ 8 thumbnails generated for image assets |
+| Verify manifest | `verify-manifest-local.mjs` | ✅ valid=true, combat_ready=true, 0 errors |
 
 ---
 
-## Contract Compatibility
+## Verify-Manifest Results
 
-The `import-pack-from-path` endpoint was used **as-is** — no backend modifications required.
-
-The ZIP was built to match the endpoint's exact contract:
-- `combat-pack-manifest.json` at ZIP root ✅
-- `assets/<filename>` structure ✅
-- `schema_version: "1.0"` ✅
-- All asset entries include `id`, `type`, `category`, `faction`, `path`, `hash`, `mime_type` ✅
-
-A narrow **preprocessing script** (`build-ingest-zip.mjs`) was written to package Workshop assets into the correct format. This is the adapter — it is a packaging helper, not a backend change.
-
----
-
-## Intermediate Verification Issue (Resolved)
-
-**Initial verify-manifest:** Valid=false, 20 missing thumbnail errors (10 VFX combat images)
-**Root cause:** Animated GIF/WebP VFX files skipped thumbnail generation during rehydrate
-**Resolution:** `POST /api/materialize-assets` generated 20 thumbnails
-**Final verify-manifest:** Valid=true, 0 errors ✅
-
----
-
-## Category Breakdown
-
-| Category | Count |
-|----------|-------|
-| unit | 112 |
-| spell | 43 |
-| board | 27 |
-| audio | 32 |
-| image | 203 |
-| sfx | 19 |
-| ui | 15 |
-| music | 8 |
-| brand | 6 |
-| voice | 5 |
-
-Note: `image` and `audio` are type values; `unit`, `spell`, `board` etc. are category values.
-
----
-
-## Roster Summary (Newly Confirmed in Manifest)
-
-### Light Units (8 total, 5 assets each = 40 image entries)
-Valkyrie, Archer, Golem, Knight, Unicorn, Djinni, Wizard, Phoenix
-
-### Dark Units (8 total, 5 assets each = 40 image entries)
-Manticore, Banshee, Troll, Goblin, Basilisk, Shapeshifter, Sorceress, Dragon
-
-Each unit has: bust, splash, wounded, defeated, silhouette variants.
+```
+valid:         true
+combat_ready:  true
+error_count:   0
+Baseline (no source_pack): 235
+External (source_pack set): 8
+Total: 243
+```
 
 ---
 
@@ -105,29 +98,29 @@ Each unit has: bust, splash, wounded, defeated, silhouette variants.
 
 | File | Action |
 |------|--------|
-| `build-ingest-zip.mjs` | NEW — packaging helper script |
-| `build-truth-table.mjs` | NEW — truth table generator |
-| `docs/external_ingestion_report_0.5.md` | NEW |
-| `docs/external_asset_truth_table_0.5.md` | NEW |
-| `docs/known_issues_0.5.md` | NEW |
-| `public/generated/manifests/asset-manifest.json` | UPDATED (rehydrate + materialize) |
-| `public/generated/thumbnails/64/*` | NEW (10 VFX thumbnails) |
-| `public/generated/thumbnails/256/*` | NEW (10 VFX thumbnails) |
+| `ingest-external-pack.mjs` | NEW — narrow ingestion adapter |
+| `verify-manifest-local.mjs` | NEW — local verify without HTTP server |
+| `build-truth-table.mjs` | UPDATED — corrected to distinguish baseline vs external |
+| `docs/external_ingestion_report_0.5.md` | UPDATED — this file |
+| `docs/external_asset_truth_table_0.5.md` | UPDATED — 8 external rows, baseline summary |
+| `docs/known_issues_0.5.md` | UPDATED |
+| `docs/phase0_input_validation_0.5.md` | NEW |
+| `public/generated/manifests/asset-manifest.json` | UPDATED (gitignored — not committed) |
 
 ---
 
 ## What Is NOT Changed
 
 - `server.ts` — not modified
-- `board-combat-contract.ts` — not touched
-- archon-game — no changes, game integration remains blocked
+- `board-combat-contract.ts` — FROZEN
+- archon-game — no changes, blocked
+- Any baseline asset file — untouched
 
 ---
 
 ## Rollback
 
-To roll back:
-1. `git checkout main` in archon-workshop
-2. `git push origin --delete feat/external-ingestion-0.5`
-3. The Workshop manifest will revert to baseline on next rehydrate from pre-ingestion state
-4. Ingest files at `C:\Dev\ingest\` are not tracked by git — delete manually if needed
+1. Remove the 8 external asset files from `public/generated/audio/` and `public/generated/images/`
+2. Revert asset-manifest.json to remove the 8 external entries (filter by `source_pack: 'archon-external-pack-v1'`)
+3. No server.ts changes to revert
+4. Delete `ingest-external-pack.mjs` and `verify-manifest-local.mjs`
