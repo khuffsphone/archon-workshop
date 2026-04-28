@@ -252,22 +252,30 @@ after the run. No production files are modified.
 
 ---
 
-## Manual Verification Steps
+## Manual Browser Verification — Completed 2026-04-28
 
-1. Start: `npm run dev` (launches server on :3000)
-2. Open `http://localhost:3000`
-3. Switch to **Scene Lab** tab — pick **Board Overview** preset
-4. Add a review note on one VFX item
-5. **Refresh browser**
-6. Confirm: Scene Lab tab re-selected, Board Overview preset active, review note preserved
-7. Switch to **Export** tab → click **Export Workshop State**
-8. Confirm JSON file downloads with correct `active_tab`, `scene_lab.preset`, `review_notes`
-9. Switch to dashboard, clear state by refreshing without saving (or wait — state auto-saves)
-10. Click **Import Workshop State**, select the downloaded JSON
-11. Confirm: all fields restored atomically
-12. Try importing a malformed JSON file (e.g. `{ "schema_version": 99 }`)
-13. Confirm: toast error shown, no state change, workshop continues working
-14. Confirm: Existing **Export Full Pack**, **Export Combat Pack**, **Import Pack** all still work
+**Server:** `npm run dev` on `localhost:3000` (real archon-workshop server confirmed via `{"status":"ok"}` from `/api/health`)
+
+### Results
+
+| Step | Check | Result |
+|---|---|---|
+| Server start | `npm run dev` → `Archon Workshop → http://localhost:3000` | ✅ |
+| Initial load | App loads; tab bar visible: Dashboard / Generation / VFX / Scene Lab / Export | ✅ |
+| Tab switch | Clicked Scene Lab — panel rendered with preset buttons and VFX checklist | ✅ |
+| Scene Lab preset switch | Clicked **Board Overview** — board scene image loaded, button highlighted | ✅ |
+| Review note entry | Typed `"Evidence note"` into first review input (`combat-hit-flash-light-medium`) | ✅ |
+| **Refresh restore** | After F5: Scene Lab tab still active; `"Evidence note"` restored in first note field | ✅ |
+| Export Workshop State | Clicked **Export Workshop State** — JSON file download triggered | ✅ |
+| Import Workshop State | After clearing note + switching preset, imported exported file — success toast `"Workshop state restored successfully"` | ✅ |
+| Values restored after import | Scene Lab tab active, correct preset, `"Evidence note"` back in first note field | ✅ |
+| **Invalid import rejected** | Selected file with bad/missing required fields — toast error with field-level rejection message | ✅ |
+| No state mutation on invalid import | App state unchanged after rejection; app fully functional | ✅ |
+| Asset pack buttons intact | `Export Full Pack`, `Export Combat Pack`, `Verify Manifest`, `Import Pack` — all present | ✅ |
+| Workshop State buttons present | `Export Workshop State`, `Import Workshop State` — present below Asset Packs section | ✅ |
+| No unwanted file changes | `git status -sb` → `## main` (clean) | ✅ |
+
+**generationPreset / styleLock note:** These are App-level state fields correctly persisted in `WorkshopUIState` but have no visible picker controls in the current Generation panel UI (which shows only `Run Full Pipeline` and `Expand Library`). This is pre-existing behaviour — not a regression introduced by ARCHON-006A.
 
 ---
 
