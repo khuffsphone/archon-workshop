@@ -11,6 +11,14 @@ import {
   filterCatalog,
 } from '../../lib/vfxCatalog';
 import type { VFXPreset, VFXFamily, VFXFaction } from '../../lib/vfxCatalog';
+import {
+  buildQueueEntry,
+  getQueueStats,
+  filterQueueByStatus,
+  reorderEntry,
+  exportQueueBriefAsJSON,
+} from '../../lib/vfxQueue';
+import type { VFXQueueEntry } from '../../lib/vfxQueue';
 
 // Re-export for backward compatibility (SceneLabPanel imports from here)
 export { COMBAT_SLICE_VFX_IDS };
@@ -26,15 +34,20 @@ interface Props {
 }
 
 export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReject, addLog }: Props) {
-  const [selected, setSelected]     = useState<Set<string>>(new Set());
+  // ─── Catalog state ──────────────────────────────────────────────────────────
+  const [selected, setSelected]       = useState<Set<string>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
   const [filterFamily, setFilterFamily] = useState<VFXFamily | null>(null);
   const [filterFaction, setFilterFaction] = useState<VFXFaction | null>(null);
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
 
-  // ─── Derived ───────────────────────────────────────────────────────────────
+  // ─── Queue state ────────────────────────────────────────────────────────────
+  const [vfxQueue, setVfxQueue] = useState<VFXQueueEntry[]>([]);
+
+  // ─── Derived ────────────────────────────────────────────────────────────────
 
   const visiblePresets = filterCatalog({ family: filterFamily, faction: filterFaction });
+  const queueStats     = getQueueStats(vfxQueue);
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -47,16 +60,22 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
   const selectAll = () => setSelected(new Set(VFX_CATALOG.map(v => v.asset_slot)));
   const clearAll  = () => setSelected(new Set());
 
-  const handleGenerate = async () => {
+  // ─── Catalog handlers ───────────────────────────────────────────────────────
+
+  /** Enqueues all currently selected presets. Does NOT call onGenerateSelected
+   *  because the VFX catalog asset slots are not registered in INITIAL_ASSETS —
+   *  real generation wiring is ARCHON-006D scope. */
+  const handleEnqueueSelected = () => {
     if (selected.size === 0) { toast.warning('No VFX selected'); return; }
-    setIsGenerating(true);
-    addLog(`Generating ${selected.size} VFX sprites...`);
-    try {
-      await onGenerateSelected([...selected]);
-      toast.success(`${selected.size} VFX queued for generation`);
-    } finally {
-      setIsGenerating(false);
-    }
+
+    const startPriority = vfxQueue.length;
+    const presetsToEnqueue = VFX_CATALOG.filter(p => selected.has(p.asset_slot));
+    const newEntries = presetsToEnqueue.map((p, i) => buildQueueEntry(p, startPriority + i));
+
+    setVfxQueue(prev => [...prev, ...newEntries]);
+    addLog(`Enqueued ${newEntries.length} VFX preset(s) for generation.`, 'info');
+    toast.success(`${newEntries.length} VFX preset${newEntries.length === 1 ? '' : 's'} enqueued`);
+    clearAll();
   };
 
   const handleExportCatalog = () => {
@@ -95,6 +114,56 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
     return '#888';
   };
 
+  // ─── Queue handlers ─────────────────────────────────────────────────────────
+
+  const handleRemoveEntry = (queueId: string) => {
+    setVfxQueue(prev => {
+      const next = prev.filter(e => e.queueId !== queueId);
+      // Re-normalise priority after removal
+      return next.map((e, i) => ({ ...e, priority: i }));
+    });
+    addLog('VFX queue entry removed.', 'info');
+  };
+
+  const handleMoveUp = (index: number) => {
+    setVfxQueue(prev => reorderEntry(prev, index, index - 1));
+  };
+
+  const handleMoveDown = (index: number) => {
+    setVfxQueue(prev => reorderEntry(prev, index, index + 1));
+  };
+
+  const handleClearQueue = () => {
+    const nonActive = vfxQueue.filter(e => e.status !== 'generating');
+    if (nonActive.length === 0) { toast.info('Nothing to clear'); return; }
+    setVfxQueue(prev => prev.filter(e => e.status === 'generating'));
+    addLog('VFX queue cleared.', 'info');
+    toast.success('Queue cleared');
+  };
+
+  const handleExportQueueBriefs = () => {
+    if (vfxQueue.length === 0) { toast.warning('Queue is empty'); return; }
+    const json = exportQueueBriefAsJSON(vfxQueue);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `vfx-queue-briefs-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Queue briefs exported');
+    addLog(`VFX queue briefs exported — ${vfxQueue.length} entries`);
+  };
+
+  const queueStatusColor = (status: VFXQueueEntry['status']) => {
+    if (status === 'queued')     return '#888';
+    if (status === 'generating') return '#facc15';
+    if (status === 'done')       return '#4ade80';
+    if (status === 'failed')     return '#f87171';
+    if (status === 'skipped')    return '#a78bfa';
+    return '#888';
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -110,12 +179,12 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
         <button id="btn-vfx-select-all" onClick={selectAll} className="btn-sm">Select All</button>
         <button id="btn-vfx-clear" onClick={clearAll} className="btn-sm">Clear</button>
         <button
-          id="btn-vfx-generate"
-          onClick={handleGenerate}
+          id="btn-vfx-enqueue"
+          onClick={handleEnqueueSelected}
           disabled={isGenerating || selected.size === 0}
           className="btn-primary btn-sm"
         >
-          {isGenerating ? 'Generating…' : `Generate Selected (${selected.size})`}
+          {`Enqueue Selected (${selected.size})`}
         </button>
         <button
           id="btn-vfx-export-catalog"
@@ -294,6 +363,110 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
           })}
         </div>
       )}
+
+      {/* ── VFX Generation Queue ─────────────────────────────────────────────── */}
+      <div className="vfx-queue-section" id="vfx-queue-section">
+        <div className="vfx-queue-header">
+          <h3 className="vfx-queue-title">
+            VFX Generation Queue
+            <span className="vfx-queue-count">{vfxQueue.length}</span>
+          </h3>
+          <div className="vfx-queue-stats">
+            {queueStats.queued > 0     && <span className="vfx-queue-stat stat-queued">⏳ {queueStats.queued} queued</span>}
+            {queueStats.generating > 0 && <span className="vfx-queue-stat stat-generating">⚡ {queueStats.generating} generating</span>}
+            {queueStats.done > 0       && <span className="vfx-queue-stat stat-done">✅ {queueStats.done} done</span>}
+            {queueStats.failed > 0     && <span className="vfx-queue-stat stat-failed">❌ {queueStats.failed} failed</span>}
+          </div>
+          <div className="vfx-queue-controls">
+            <button
+              id="btn-vfx-queue-export"
+              className="btn-sm vfx-export-btn"
+              onClick={handleExportQueueBriefs}
+              disabled={vfxQueue.length === 0}
+              title="Export queue entries as a JSON brief package"
+            >
+              Export Queue Briefs
+            </button>
+            <button
+              id="btn-vfx-queue-clear"
+              className="btn-sm btn-danger-sm"
+              onClick={handleClearQueue}
+              disabled={vfxQueue.length === 0}
+              title="Remove all non-generating entries from the queue"
+            >
+              Clear Queue
+            </button>
+          </div>
+        </div>
+
+        {vfxQueue.length === 0 ? (
+          <p className="vfx-queue-empty">
+            No presets queued. Select presets above and click <strong>Enqueue Selected</strong>.
+          </p>
+        ) : (
+          <div className="vfx-queue-list" id="vfx-queue-list">
+            {vfxQueue.map((entry, index) => (
+              <div
+                key={entry.queueId}
+                className={`vfx-queue-row vfx-queue-row--${entry.status}`}
+                id={`vfx-queue-row-${entry.queueId}`}
+              >
+                {/* Priority badge */}
+                <span className="vfx-queue-priority" title="Queue priority">{index + 1}</span>
+
+                {/* Status dot */}
+                <span
+                  className="vfx-queue-status-dot"
+                  style={{ background: queueStatusColor(entry.status) }}
+                  title={entry.status}
+                />
+
+                {/* Entry info */}
+                <div className="vfx-queue-info">
+                  <span className="vfx-queue-name">{entry.presetName}</span>
+                  <span className="vfx-queue-meta">
+                    {entry.family} · {entry.faction} · intensity {entry.intensity}/5
+                  </span>
+                  <span className="vfx-queue-slot mono">{entry.assetSlot}</span>
+                </div>
+
+                {/* Status badge */}
+                <span className={`vfx-queue-badge vfx-queue-badge--${entry.status}`}>
+                  {entry.status}
+                </span>
+
+                {/* Reorder + remove controls */}
+                <div className="vfx-queue-row-controls">
+                  <button
+                    id={`btn-queue-up-${entry.queueId}`}
+                    className="btn-icon"
+                    onClick={() => handleMoveUp(index)}
+                    disabled={index === 0}
+                    title="Move up"
+                    aria-label={`Move ${entry.presetName} up`}
+                  >▲</button>
+                  <button
+                    id={`btn-queue-down-${entry.queueId}`}
+                    className="btn-icon"
+                    onClick={() => handleMoveDown(index)}
+                    disabled={index === vfxQueue.length - 1}
+                    title="Move down"
+                    aria-label={`Move ${entry.presetName} down`}
+                  >▼</button>
+                  <button
+                    id={`btn-queue-remove-${entry.queueId}`}
+                    className="btn-icon btn-icon--danger"
+                    onClick={() => handleRemoveEntry(entry.queueId)}
+                    disabled={entry.status === 'generating'}
+                    title="Remove from queue"
+                    aria-label={`Remove ${entry.presetName} from queue`}
+                  >✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

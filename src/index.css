@@ -217,3 +217,200 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 .vfx-brief-block--negative { color: var(--danger); border-color: rgba(248,113,113,0.3); }
 .vfx-drawer-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ── VFX Generation Queue (ARCHON-006C) ────────────────────────────────────── */
+/* All classes prefixed .vfx-queue-* — additive only, no existing classes changed */
+
+.vfx-queue-section {
+  margin-top: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.vfx-queue-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.vfx-queue-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vfx-queue-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  background: var(--accent);
+  color: #000;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.vfx-queue-stats {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.vfx-queue-stat {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.vfx-queue-stat.stat-queued     { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.vfx-queue-stat.stat-generating { background: rgba(250,204,21,0.15);  color: #facc15; }
+.vfx-queue-stat.stat-done       { background: rgba(74,222,128,0.15);  color: #4ade80; }
+.vfx-queue-stat.stat-failed     { background: rgba(248,113,113,0.15); color: #f87171; }
+
+.vfx-queue-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-danger-sm {
+  background: rgba(248,113,113,0.12);
+  border: 1px solid rgba(248,113,113,0.4);
+  color: #f87171;
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger-sm:hover:not(:disabled) { background: rgba(248,113,113,0.25); }
+.btn-danger-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.vfx-queue-empty {
+  padding: 1.5rem 1.1rem;
+  color: #4b5563;
+  font-size: 0.85rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.vfx-queue-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.vfx-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.vfx-queue-row:last-child { border-bottom: none; }
+.vfx-queue-row:hover { background: var(--surface2); }
+.vfx-queue-row--generating { background: rgba(250,204,21,0.04); }
+.vfx-queue-row--done       { background: rgba(74,222,128,0.04); }
+.vfx-queue-row--failed     { background: rgba(248,113,113,0.04); }
+
+.vfx-queue-priority {
+  min-width: 1.6rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4b5563;
+  background: var(--surface2);
+  border-radius: 4px;
+  padding: 0.15rem 0.3rem;
+}
+
+.vfx-queue-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.vfx-queue-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.vfx-queue-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vfx-queue-meta {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.vfx-queue-slot {
+  font-size: 0.68rem;
+  color: #4b5563;
+  font-family: monospace;
+}
+
+.vfx-queue-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.vfx-queue-badge--queued     { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.vfx-queue-badge--generating { background: rgba(250,204,21,0.2);   color: #facc15; }
+.vfx-queue-badge--done       { background: rgba(74,222,128,0.2);   color: #4ade80; }
+.vfx-queue-badge--failed     { background: rgba(248,113,113,0.2);  color: #f87171; }
+.vfx-queue-badge--skipped    { background: rgba(167,139,250,0.2);  color: #a78bfa; }
+
+.vfx-queue-row-controls {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.btn-icon:hover:not(:disabled) { background: var(--border); color: #e5e7eb; }
+.btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-icon--danger:hover:not(:disabled) { background: rgba(248,113,113,0.2); color: #f87171; border-color: rgba(248,113,113,0.4); }
