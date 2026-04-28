@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Asset } from '../../lib/assetManifest';
+import type { ScenePresetKey } from '../../lib/workshopPersistence';
 
 // ─── Scene Preset ─────────────────────────────────────────────────────────────
 
@@ -25,19 +26,26 @@ const SCENE_PRESETS = {
   },
 } as const;
 
-type PresetKey = keyof typeof SCENE_PRESETS;
-
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 interface Props {
   assets: Asset[];
   addLog: (msg: string, type?: 'info' | 'success' | 'error' | 'warning') => void;
+  // Lifted state — owned by App.tsx for persistence
+  preset: ScenePresetKey;
+  onPresetChange: (p: ScenePresetKey) => void;
+  reviewNotes: Record<string, string>;
+  onReviewNotesChange: (notes: Record<string, string>) => void;
 }
 
-export function SceneLabPanel({ assets, addLog }: Props) {
-  const [preset, setPreset] = useState<PresetKey>('combat_knight_vs_sorceress');
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-
+export function SceneLabPanel({
+  assets,
+  addLog: _addLog,
+  preset,
+  onPresetChange,
+  reviewNotes,
+  onReviewNotesChange,
+}: Props) {
   const scene = SCENE_PRESETS[preset];
 
   const getAsset = (id: string) => assets.find(a => a.id === id);
@@ -46,7 +54,8 @@ export function SceneLabPanel({ assets, addLog }: Props) {
   const lightUnit = getAsset(scene.lightUnit);
   const darkUnit = getAsset(scene.darkUnit);
 
-  const updateNote = (id: string, note: string) => setReviewNotes(prev => ({ ...prev, [id]: note }));
+  const updateNote = (id: string, note: string) =>
+    onReviewNotesChange({ ...reviewNotes, [id]: note });
 
   const allApproved = [scene.arena, scene.lightUnit, scene.darkUnit, ...scene.vfxIds]
     .every(id => getAsset(id)?.status === 'approved');
@@ -56,12 +65,12 @@ export function SceneLabPanel({ assets, addLog }: Props) {
       <h2>Scene Lab</h2>
 
       <div className="scenelab-preset-bar">
-        {(Object.keys(SCENE_PRESETS) as PresetKey[]).map(key => (
+        {(Object.keys(SCENE_PRESETS) as ScenePresetKey[]).map(key => (
           <button
             key={key}
             id={`preset-${key}`}
             className={`btn-preset ${preset === key ? 'active' : ''}`}
-            onClick={() => setPreset(key)}
+            onClick={() => onPresetChange(key)}
           >
             {SCENE_PRESETS[key].label}
           </button>

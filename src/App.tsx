@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { INITIAL_ASSETS, Asset } from './lib/assetManifest';
 import { Toaster, toast } from 'sonner';
 import { GenerationPanel, useGeneration } from './features/generation/GenerationPanel';
 import { ExportPanel } from './features/export/ExportPanel';
 import { VFXWorkflowPanel } from './features/vfx/VFXWorkflowPanel';
 import { SceneLabPanel } from './features/scenelab/SceneLabPanel';
+import {
+  buildWorkshopState,
+  validateWorkshopState,
+  WORKSHOP_STATE_SCHEMA_VERSION,
+} from './lib/workshopPersistence';
+import type { WorkshopUIState, ValidTab, GenerationPreset, ScenePresetKey } from './lib/workshopPersistence';
 
 // ─── Worker Queue ─────────────────────────────────────────────────────────────
 
@@ -104,7 +110,7 @@ class WorkerQueue {
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-type Tab = 'dashboard' | 'generation' | 'vfx' | 'scenelab' | 'export';
+type Tab = ValidTab;
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard',  label: '📊 Dashboard'   },
@@ -118,6 +124,38 @@ const TABS: { id: Tab; label: string }[] = [
 
 const MAX_LOGS = 50;
 
+// ─── Workspace state persistence helpers ──────────────────────────────────────
+
+async function serverSaveWorkshopState(state: WorkshopUIState): Promise<void> {
+  try {
+    await fetch('/api/save-workspace-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state }),
+    });
+  } catch (e) {
+    console.error('Failed to persist workspace state', e);
+  }
+}
+
+async function serverLoadWorkshopState(): Promise<WorkshopUIState | null> {
+  try {
+    const res = await fetch('/api/get-workspace-state');
+    if (!res.ok) return null;
+    const raw = await res.json();
+    if (raw === null) return null;
+    const result = validateWorkshopState(raw);
+    if ('errors' in result) {
+      console.warn('Stored workspace-state.json failed validation — using defaults.', result.errors);
+      return null;
+    }
+    return result.state;
+  } catch (e) {
+    console.error('Failed to load workspace state', e);
+    return null;
+  }
+}
+
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -129,8 +167,21 @@ export default function App() {
   const [logs, setLogs] = useState<string[]>([]);
   const [queue, setQueue] = useState<WorkerQueue | null>(null);
   const [styleLock, setStyleLock] = useState({ light: '', dark: '', ui: '', vfx: '' });
-  const [generationPreset, setGenerationPreset] = useState<'draft' | 'production' | 'premium'>('production');
+  const [generationPreset, setGenerationPreset] = useState<GenerationPreset>('production');
+  // Scene Lab state lifted here for persistence
+  const [sceneLabPreset, setSceneLabPreset] = useState<ScenePresetKey>('combat_knight_vs_sorceress');
+  const [sceneLabReviewNotes, setSceneLabReviewNotes] = useState<Record<string, string>>({});
+
   const bootstrapLock = useRef(false);
+
+  // ─── Amendment 2: hydration guard ───────────────────────────────────────────
+  // This flag is false until the workspace-state restore attempt completes
+  // (success or not). The debounced save effect checks this before writing,
+  // preventing the initial default state from overwriting a saved state.
+  const [hasHydratedWorkspaceState, setHasHydratedWorkspaceState] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track last saved value to avoid unnecessary writes
+  const lastSavedStateRef = useRef<string>('');
 
   const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
     const icon = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' }[type];
@@ -150,14 +201,30 @@ export default function App() {
     setQueue(q);
   }, []);
 
-  // Bootstrap: load / rehydrate manifest
+  // Bootstrap: load / rehydrate manifest AND restore workspace state
   useEffect(() => {
     if (!queue) return;
     if (bootstrapLock.current) return;
     bootstrapLock.current = true;
 
     (async () => {
+      // 1. Queue state
       await queue.loadState();
+
+      // 2. Workspace UI state — restore BEFORE setting hasHydratedWorkspaceState
+      const savedState = await serverLoadWorkshopState();
+      if (savedState) {
+        setActiveTab(savedState.active_tab);
+        setStyleLock(savedState.style_lock);
+        setGenerationPreset(savedState.generation_preset);
+        setSceneLabPreset(savedState.scene_lab.preset);
+        setSceneLabReviewNotes(savedState.scene_lab.review_notes);
+        addLog('Workshop state restored.', 'success');
+      }
+      // Restore complete (or not found) — allow debounced saves from now on
+      setHasHydratedWorkspaceState(true);
+
+      // 3. Asset manifest
       addLog('Scanning disk for existing assets…');
       try {
         const res = await fetch('/api/rehydrate-manifest');
@@ -178,6 +245,56 @@ export default function App() {
       }
     })();
   }, [queue]);
+
+  // ─── Debounced workspace state save ──────────────────────────────────────────
+  // Only saves after hydration is complete (Amendment 2 guard).
+  // Uses a content-equality check to avoid redundant writes.
+  useEffect(() => {
+    if (!hasHydratedWorkspaceState) return;
+
+    const current = buildWorkshopState({
+      activeTab,
+      styleLock,
+      generationPreset,
+      sceneLabPreset,
+      sceneLabReviewNotes,
+    });
+    const serialized = JSON.stringify(current);
+    if (serialized === lastSavedStateRef.current) return;
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      await serverSaveWorkshopState(current);
+      lastSavedStateRef.current = serialized;
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [hasHydratedWorkspaceState, activeTab, styleLock, generationPreset, sceneLabPreset, sceneLabReviewNotes]);
+
+  // ─── Workshop State callbacks for ExportPanel ────────────────────────────────
+
+  const handleExportWorkshopState = useCallback((): WorkshopUIState => {
+    return buildWorkshopState({
+      activeTab,
+      styleLock,
+      generationPreset,
+      sceneLabPreset,
+      sceneLabReviewNotes,
+    });
+  }, [activeTab, styleLock, generationPreset, sceneLabPreset, sceneLabReviewNotes]);
+
+  const handleImportWorkshopState = useCallback((state: WorkshopUIState) => {
+    // Apply atomically — all or nothing (Amendment 5)
+    setActiveTab(state.active_tab);
+    setStyleLock(state.style_lock);
+    setGenerationPreset(state.generation_preset);
+    setSceneLabPreset(state.scene_lab.preset);
+    setSceneLabReviewNotes(state.scene_lab.review_notes);
+    // Persist the restored state immediately (no debounce delay)
+    serverSaveWorkshopState(state);
+  }, []);
 
   // Generation hook
   const { handleGenerate, batchGenerate, expandLibrary } = useGeneration({
@@ -245,6 +362,9 @@ export default function App() {
           <span className="stat pending">⏳ {pending}</span>
           <span className="stat failed">❌ {failed}</span>
           {generating > 0 && <span className="stat generating">⚡ {generating}</span>}
+          {hasHydratedWorkspaceState && (
+            <span className="stat saved" title="Workshop state is being auto-saved">💾</span>
+          )}
         </div>
       </header>
 
@@ -307,9 +427,16 @@ export default function App() {
           />
         )}
 
-        {/* Scene Lab */}
+        {/* Scene Lab — preset and reviewNotes are lifted here for persistence */}
         {activeTab === 'scenelab' && (
-          <SceneLabPanel assets={assets} addLog={addLog} />
+          <SceneLabPanel
+            assets={assets}
+            addLog={addLog}
+            preset={sceneLabPreset}
+            onPresetChange={setSceneLabPreset}
+            reviewNotes={sceneLabReviewNotes}
+            onReviewNotesChange={setSceneLabReviewNotes}
+          />
         )}
 
         {/* Export */}
@@ -319,6 +446,8 @@ export default function App() {
             setAssets={setAssets}
             saveManifest={saveManifest}
             addLog={addLog}
+            onExportWorkshopState={handleExportWorkshopState}
+            onImportWorkshopState={handleImportWorkshopState}
           />
         )}
       </main>

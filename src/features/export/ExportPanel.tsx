@@ -5,12 +5,17 @@ import type { CombatPackManifest } from '../../lib/assetManifest';
 import { COMBAT_PACK_SCHEMA_VERSION, COMBAT_SLICE_REQUIRED_IDS } from '../../lib/assetManifest';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
+import type { WorkshopUIState } from '../../lib/workshopPersistence';
+import { validateWorkshopState, downloadWorkshopState, parseWorkshopStateFile } from '../../lib/workshopPersistence';
 
 interface Props {
   assets: Asset[];
   setAssets: (updater: (prev: Asset[]) => Asset[]) => void;
   saveManifest: (assets: Asset[]) => Promise<void>;
   addLog: (msg: string, type?: 'info' | 'success' | 'error' | 'warning') => void;
+  // Workshop State persistence (separate from asset pack export)
+  onExportWorkshopState: () => WorkshopUIState;
+  onImportWorkshopState: (state: WorkshopUIState) => void;
 }
 
 // ─── Export Pack ──────────────────────────────────────────────────────────────
@@ -213,8 +218,9 @@ export async function importPack(
 
 // ─── Panel UI ─────────────────────────────────────────────────────────────────
 
-export function ExportPanel({ assets, setAssets, saveManifest, addLog }: Props) {
+export function ExportPanel({ assets, setAssets, saveManifest, addLog, onExportWorkshopState, onImportWorkshopState }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const stateInputRef = useRef<HTMLInputElement>(null);
 
   const handleExportFull = async () => {
     try { await exportFullPack(addLog, setAssets); }
@@ -248,15 +254,80 @@ export function ExportPanel({ assets, setAssets, saveManifest, addLog }: Props) 
     e.target.value = '';
   };
 
+  // ── Workshop State export ───────────────────────────────────────────────────
+  // Downloads a JSON snapshot of the current UI configuration.
+  // Does NOT touch the asset pack, manifests, or ZIP pipeline.
+
+  const handleExportWorkshopState = () => {
+    const state = onExportWorkshopState();
+    downloadWorkshopState(state);
+    toast.success('Workshop state exported');
+  };
+
+  // ── Workshop State import ───────────────────────────────────────────────────
+  // Reads a JSON file, validates it fully, then atomically applies it.
+  // If validation fails, state is not mutated.
+
+  const handleImportWorkshopState = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    let raw: unknown;
+    try {
+      raw = await parseWorkshopStateFile(file);
+    } catch {
+      toast.error('Invalid file — could not parse JSON.');
+      return;
+    }
+
+    // Validate the entire payload BEFORE mutating any state (Amendment 5 — atomic restore)
+    const result = validateWorkshopState(raw);
+    if ('errors' in result) {
+      const summary = result.errors.map(err => `[${err.field}] ${err.message}`).join(' • ');
+      toast.error(`Workshop state rejected: ${summary}`);
+      addLog(`Workshop state import failed: ${summary}`, 'error');
+      return;
+    }
+
+    // Validation passed — apply atomically
+    onImportWorkshopState(result.state);
+    toast.success('Workshop state restored successfully');
+    addLog('Workshop state imported from file.', 'success');
+  };
+
   return (
     <div className="export-panel">
       <h2>Export &amp; Import</h2>
-      <div className="panel-actions">
-        <button id="btn-export-full" onClick={handleExportFull} className="btn-primary">Export Full Pack</button>
-        <button id="btn-export-combat" onClick={handleExportCombat} className="btn-accent">Export Combat Pack</button>
-        <button id="btn-verify-manifest" onClick={handleVerify} className="btn-secondary">Verify Manifest</button>
-        <button id="btn-import-pack" onClick={() => fileInputRef.current?.click()} className="btn-secondary">Import Pack</button>
-        <input ref={fileInputRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={handleImport} />
+
+      {/* ── Asset Pack Operations (existing — contract frozen) ── */}
+      <div className="panel-section">
+        <h3 className="panel-section-label">Asset Packs</h3>
+        <div className="panel-actions">
+          <button id="btn-export-full" onClick={handleExportFull} className="btn-primary">Export Full Pack</button>
+          <button id="btn-export-combat" onClick={handleExportCombat} className="btn-accent">Export Combat Pack</button>
+          <button id="btn-verify-manifest" onClick={handleVerify} className="btn-secondary">Verify Manifest</button>
+          <button id="btn-import-pack" onClick={() => fileInputRef.current?.click()} className="btn-secondary">Import Pack</button>
+          <input ref={fileInputRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={handleImport} />
+        </div>
+      </div>
+
+      {/* ── Workshop State (new — JSON only, separate from asset packs) ── */}
+      <div className="panel-section">
+        <h3 className="panel-section-label">Workshop State</h3>
+        <p className="panel-section-desc">
+          Save and restore your UI configuration (active tab, style lock, scene preset, review notes).
+          This does not affect generated assets or manifests.
+        </p>
+        <div className="panel-actions">
+          <button id="btn-export-workshop-state" onClick={handleExportWorkshopState} className="btn-secondary">
+            Export Workshop State
+          </button>
+          <button id="btn-import-workshop-state" onClick={() => stateInputRef.current?.click()} className="btn-secondary">
+            Import Workshop State
+          </button>
+          <input ref={stateInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportWorkshopState} />
+        </div>
       </div>
     </div>
   );
