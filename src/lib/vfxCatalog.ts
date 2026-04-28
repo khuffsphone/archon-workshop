@@ -5,7 +5,7 @@
  *
  * This module is the single source of truth for:
  *   - VFX type definitions (VFXFamily, VFXFaction, VFXPreset)
- *   - The 10-entry combat slice preset catalog
+ *   - The 12-entry combat slice preset catalog
  *   - The COMBAT_SLICE_VFX_IDS list (moved here from VFXWorkflowPanel.tsx)
  *   - Pure helper functions: buildGenerationBrief(), exportCatalogAsJSON()
  *
@@ -90,6 +90,8 @@ export const COMBAT_SLICE_VFX_IDS = [
   'combat-status-poison',
   'combat-status-stun',
   'combat-ambient-arena',
+  'combat-projectile-light',
+  'combat-projectile-dark',
 ] as const;
 
 // ─── Style Bible (inline summary for prompt construction) ─────────────────────
@@ -310,6 +312,46 @@ export const VFX_CATALOG: VFXPreset[] = [
     timing_ms: 0, // looping
     intensity: 1,
     layering: 'back',
+    approved_for_generation: true,
+  },
+  {
+    id: 'preset-combat-projectile-light',
+    name: 'Projectile — Light',
+    family: 'projectile',
+    faction: 'light',
+    description: 'Sacred golden bolt fired by a Light faction ranged unit.',
+    use_case: 'Plays in flight between attacker and defender tiles on a Light ranged attack.',
+    asset_slot: 'combat-projectile-light',
+    prompt_brief:
+      `${STYLE_BASE} A ranged projectile flight VFX for a Light faction attack. ` +
+      `A fast-moving radiant bolt: golden energy core with an azure trailing glow, motion-blur streaks, tapering tail. ` +
+      `Colors: ${FACTION_COLORS.light}. Directional left-to-right orientation. ` +
+      `PURE PARTICLE AND ENERGY EFFECT ONLY — no character forms, no weapon shapes.`,
+    negative_prompt: NEGATIVE_BASE + ', arrow, sword, weapon, shield',
+    visual_tags: ['projectile', 'bolt', 'light', 'gold', 'azure', 'motion-blur', 'trail', 'fast', 'ranged'],
+    timing_ms: 200,
+    intensity: 3,
+    layering: 'front',
+    approved_for_generation: true,
+  },
+  {
+    id: 'preset-combat-projectile-dark',
+    name: 'Projectile — Dark',
+    family: 'projectile',
+    faction: 'dark',
+    description: 'Shadow void bolt fired by a Dark faction ranged unit.',
+    use_case: 'Plays in flight between attacker and defender tiles on a Dark ranged attack.',
+    asset_slot: 'combat-projectile-dark',
+    prompt_brief:
+      `${STYLE_BASE} A ranged projectile flight VFX for a Dark faction attack. ` +
+      `A fast-moving shadow bolt: deep violet energy core with crimson trailing wisps, corrupted energy fragments, tapering void tail. ` +
+      `Colors: ${FACTION_COLORS.dark}. Directional left-to-right orientation. ` +
+      `PURE PARTICLE AND ENERGY EFFECT ONLY — no character forms, no weapon shapes.`,
+    negative_prompt: NEGATIVE_BASE + ', arrow, sword, weapon, shield',
+    visual_tags: ['projectile', 'bolt', 'dark', 'violet', 'crimson', 'motion-blur', 'trail', 'fast', 'ranged', 'void'],
+    timing_ms: 200,
+    intensity: 3,
+    layering: 'front',
     approved_for_generation: true,
   },
 ];

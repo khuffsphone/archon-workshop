@@ -68,7 +68,7 @@ console.log('\n── ARCHON-006B Smoke Test ───────────�
 
 console.log('S1: Catalog structure');
 assert('VFX_CATALOG is an array', Array.isArray(VFX_CATALOG));
-assert('VFX_CATALOG has 10 entries', VFX_CATALOG.length === 10, `got ${VFX_CATALOG.length}`);
+assert('VFX_CATALOG has at least 12 entries', VFX_CATALOG.length >= 12, `got ${VFX_CATALOG.length}`);
 
 const ids = VFX_CATALOG.map(p => p.id);
 const uniqueIds = new Set(ids);
@@ -81,7 +81,7 @@ assert('All asset_slot values are unique', uniqueSlots.size === slots.length, `f
 // ── S2: COMBAT_SLICE_VFX_IDS coverage ─────────────────────────────────────────
 
 console.log('\nS2: COMBAT_SLICE_VFX_IDS coverage');
-assert('COMBAT_SLICE_VFX_IDS is an array-like with 10 entries', COMBAT_SLICE_VFX_IDS.length === 10, `got ${COMBAT_SLICE_VFX_IDS.length}`);
+assert('COMBAT_SLICE_VFX_IDS is an array-like with at least 12 entries', COMBAT_SLICE_VFX_IDS.length >= 12, `got ${COMBAT_SLICE_VFX_IDS.length}`);
 
 const sliceSet = new Set(COMBAT_SLICE_VFX_IDS);
 for (const preset of VFX_CATALOG) {
@@ -173,17 +173,17 @@ try {
 }
 if (parsed) {
   assert('exported JSON has entries array', Array.isArray(parsed.entries));
-  assert('exported JSON has 10 entries', parsed.entries?.length === 10, `got ${parsed.entries?.length}`);
+  assert('exported JSON has at least 12 entries', parsed.entries?.length >= 12, `got ${parsed.entries?.length}`);
   assert('exported JSON has catalog_version field', parsed.catalog_version === 1);
   assert('exported JSON has exported_at field', typeof parsed.exported_at === 'string');
-  assert('exported JSON has entry_count field', parsed.entry_count === 10);
+  assert('exported JSON entry_count matches entries length', parsed.entry_count === parsed.entries?.length);
 }
 
 // ── S10: filterCatalog ────────────────────────────────────────────────────────
 
 console.log('\nS10: filterCatalog');
 const allResults = filterCatalog({ family: null, faction: null });
-assert('filterCatalog(null, null) returns all 10', allResults.length === 10, `got ${allResults.length}`);
+assert('filterCatalog(null, null) returns all catalog entries', allResults.length === VFX_CATALOG.length, `got ${allResults.length}`);
 
 const hitResults = filterCatalog({ family: 'hit', faction: null });
 assert('filterCatalog(hit, null) returns ≥1', hitResults.length >= 1, `got ${hitResults.length}`);
@@ -198,9 +198,21 @@ assert('filterCatalog(hit, light) returns ≥1', lightHitResults.length >= 1, `g
 assert('filterCatalog(hit, light) all match both filters',
   lightHitResults.every(p => p.family === 'hit' && p.faction === 'light'));
 
-const noResults = filterCatalog({ family: 'projectile', faction: null });
-// (no projectile entries in the combat slice — expected 0)
-assert('filterCatalog(projectile, null) returns 0 (none in slice)', noResults.length === 0, `got ${noResults.length}`);
+const projectileResults = filterCatalog({ family: 'projectile', faction: null });
+assert('filterCatalog(projectile, null) returns ≥2 (light + dark)', projectileResults.length >= 2, `got ${projectileResults.length}`);
+assert('filterCatalog(projectile, null) all have family=projectile', projectileResults.every(p => p.family === 'projectile'));
+
+// ── S11: Family and faction coverage ──────────────────────────────────────────
+
+console.log('\nS11: Family and faction coverage');
+const representedFamilies = new Set(VFX_CATALOG.map(p => p.family));
+assert('At least 6 distinct VFX families represented', representedFamilies.size >= 6, `got ${representedFamilies.size}: ${[...representedFamilies].join(', ')}`);
+assert('Light faction is represented', VFX_CATALOG.some(p => p.faction === 'light'));
+assert('Dark faction is represented', VFX_CATALOG.some(p => p.faction === 'dark'));
+assert('Neutral faction is represented', VFX_CATALOG.some(p => p.faction === 'neutral'));
+assert('projectile family has both light and dark entries',
+  VFX_CATALOG.some(p => p.family === 'projectile' && p.faction === 'light') &&
+  VFX_CATALOG.some(p => p.family === 'projectile' && p.faction === 'dark'));
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 

@@ -9,12 +9,12 @@
 ## Files Changed
 
 | File | Action | Purpose |
-|---|---|---|
-| `src/lib/vfxCatalog.ts` | **NEW** | Typed VFX preset schema + 10 combat slice entries + helpers |
+|---|---|
+| `src/lib/vfxCatalog.ts` | **MODIFIED** | Added 2 projectile presets (light + dark); updated `COMBAT_SLICE_VFX_IDS` to 12 entries; updated header comment |
 | `src/features/vfx/VFXWorkflowPanel.tsx` | **MODIFIED** | Consumes catalog; filter bar; detail drawer; Export Catalog JSON button |
 | `src/index.css` | **MODIFIED** | Additive CSS for filter bar, chips, drawer, pips, tags, brief block |
-| `scripts/smoke-test-archon-006b.mjs` | **NEW** | 223-assertion smoke test |
-| `docs/walkthrough-archon-006b.md` | **NEW** | This document |
+| `scripts/smoke-test-archon-006b.mjs` | **MODIFIED** | Updated 4 hardcoded-10 assertions to ≥12; fixed projectile filter assertion; added S11 family/faction coverage section (267 assertions) |
+| `docs/walkthrough-archon-006b.md` | **MODIFIED** | Added browser verification results section; updated acceptance criteria |
 
 **Not modified (protected):**
 - `server.ts`
@@ -62,7 +62,7 @@ interface VFXPreset {
 }
 ```
 
-**10 catalog entries** (full combat slice):
+**12 catalog entries** (full combat slice):
 
 | Preset | Family | Faction | Intensity | Timing |
 |---|---|---|---|---|
@@ -76,6 +76,10 @@ interface VFXPreset {
 | Status — Poison | status | dark | 2 | 1200ms |
 | Status — Stun | status | neutral | 2 | 1200ms |
 | Ambient Arena Effect | nova | neutral | 1 | looping |
+| Projectile — Light | projectile | light | 3 | 200ms |
+| Projectile — Dark | projectile | dark | 3 | 200ms |
+
+**6 distinct VFX families** represented: `hit`, `death`, `spawn`, `nova`, `status`, `projectile`.
 
 **Helpers exported:**
 
@@ -128,10 +132,10 @@ No import sites broken. Zero changes to `SceneLabPanel.tsx`.
 ## Commands Run
 
 ```powershell
-npm run lint     # tsc --noEmit → 0 errors
-npm run build    # vite build → ✓ 54 modules, exit 0 (was 53 before)
+npm run lint    # tsc --noEmit → 0 errors
+npm run build   # vite build → ✓ 54 modules, exit 0
 node --import=tsx/esm scripts/smoke-test-archon-006b.mjs
-# → 223 passed, 0 failed
+# → 267 passed, 0 failed
 ```
 
 ---
@@ -140,18 +144,41 @@ node --import=tsx/esm scripts/smoke-test-archon-006b.mjs
 
 ```
 S1:  Catalog structure             — 4 assertions  ✅
-S2:  COMBAT_SLICE_VFX_IDS coverage — 11 assertions ✅
-S3:  Required fields               — 60 assertions ✅
-S4:  Enum fields valid             — 40 assertions ✅
-S5:  visual_tags structure         — 20 assertions ✅
-S6:  timing_ms                     — 10 assertions ✅
+S2:  COMBAT_SLICE_VFX_IDS coverage — 13 assertions ✅
+S3:  Required fields               — 72 assertions ✅
+S4:  Enum fields valid             — 48 assertions ✅
+S5:  visual_tags structure         — 24 assertions ✅
+S6:  timing_ms                     — 12 assertions ✅
 S7:  VFX_FAMILIES and VFX_FACTIONS — 13 assertions ✅
-S8:  buildGenerationBrief          — 50 assertions ✅
+S8:  buildGenerationBrief          — 60 assertions ✅
 S9:  exportCatalogAsJSON           — 7 assertions  ✅
-S10: filterCatalog                 — 8 assertions  ✅
+S10: filterCatalog                 — 9 assertions  ✅
+S11: Family and faction coverage   — 5 assertions  ✅
 
-ARCHON-006B smoke test complete — 223 passed, 0 failed ✅
+ARCHON-006B smoke test complete — 267 passed, 0 failed ✅
 ```
+
+---
+
+## Browser Verification Results
+
+**Date:** 2026-04-28  
+**Server:** `localhost:3000` (existing dev server confirmed running)  
+**Recording:** `archon_006b_verification_1777412276192.webp`
+
+| Step | Check | Result |
+|---|---|---|
+| 1 | Page loads at localhost:3000 without errors | ✅ |
+| 2 | VFX Workflow tab navigates correctly | ✅ |
+| 3 | Header shows "12 VFX presets · 12 shown" | ✅ |
+| 4 | Filter bar present: family chips + faction chips | ✅ |
+| 5 | Filter by `projectile` → exactly 2 cards (Light + Dark) | ✅ |
+| 6 | Filter by `light` faction → 4 Light presets shown | ✅ |
+| 7 | Detail drawer opens on Projectile — Light card; shows asset_slot, use_case, timing, layering, intensity pips, tags, prompt brief, negative prompt, Copy Brief button | ✅ |
+| 8 | Toolbar: Select All, Clear, Generate Selected (0), Export Catalog JSON all present | ✅ |
+| 9 | Export Catalog JSON → "✅ VFX catalog exported" toast appears, download triggered | ✅ |
+| 10 | Preview slots exist on all cards; new Projectile presets show empty slots (no assets generated yet) | ✅ |
+| 11 | Export tab loads correctly; no regression on Export Full Pack / Export Combat Pack | ✅ |
 
 ---
 
@@ -162,7 +189,8 @@ ARCHON-006B smoke test complete — 223 passed, 0 failed ✅
 | Typed `VFXPreset` schema created | ✅ |
 | All 8 VFXFamily values defined | ✅ |
 | All 3 VFXFaction values defined | ✅ |
-| 10 combat slice presets with full metadata | ✅ |
+| **12 presets in catalog** | ✅ |
+| **At least 6 VFX families represented** (hit, death, spawn, nova, status, projectile) | ✅ |
 | Each preset has a Style-Bible-aligned `prompt_brief` | ✅ |
 | Each preset has `negative_prompt`, `visual_tags`, `timing_ms`, `intensity`, `layering` | ✅ |
 | `buildGenerationBrief()` output contains all key fields | ✅ |
@@ -175,11 +203,13 @@ ARCHON-006B smoke test complete — 223 passed, 0 failed ✅
 | Copy Brief button | ✅ |
 | Intensity pip visual indicator | ✅ |
 | Export Catalog JSON button | ✅ |
+| Lightweight preview area (thumbnail slot on each card) | ✅ |
 | All existing props/approve/reject/generate behaviour preserved | ✅ |
 | Zero changes to protected contracts | ✅ |
 | Build passes: 54 modules, exit 0 | ✅ |
 | Lint passes: 0 errors | ✅ |
-| Smoke test: 223/223 | ✅ |
+| Smoke test: 267/267 | ✅ |
+| Manual browser verification: 11/11 steps PASS | ✅ |
 
 ---
 
