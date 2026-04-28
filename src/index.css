@@ -143,3 +143,77 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .vfx-status { font-size: 0.75rem; min-width: 80px; text-align: right; color: var(--text-muted); }
 .review-note-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 0.25rem 0.5rem; font-size: 0.75rem; width: 160px; }
 .scenelab-note { font-size: 0.78rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
+.vfx-badge.approved-flag { background: rgba(74,222,128,0.15); color: var(--success); margin-left: auto; }
+.vfx-desc { font-size: 0.73rem; color: var(--text-muted); line-height: 1.35; margin-top: 0.1rem; }
+.vfx-empty { font-size: 0.875rem; color: var(--text-muted); padding: 2rem 0; text-align: center; }
+.vfx-export-btn { margin-left: auto; }
+
+/* ── VFX Filter Bar ─────────────────────────────────────────── */
+.vfx-filter-bar {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 0.4rem; margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.vfx-filter-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.vfx-filter-sep { width: 1px; height: 18px; background: var(--border); margin: 0 0.25rem; }
+.vfx-chip {
+  padding: 0.2rem 0.55rem; font-size: 0.75rem; border-radius: 99px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
+  cursor: pointer; transition: border-color 120ms, color 120ms, background 120ms;
+  text-transform: capitalize;
+}
+.vfx-chip:hover { border-color: var(--accent); color: var(--text); }
+.vfx-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(250,200,50,0.08); }
+.vfx-chip--light.active  { border-color: var(--light);  color: var(--light);  background: rgba(100,160,220,0.08); }
+.vfx-chip--dark.active   { border-color: var(--dark-clr); color: var(--dark-clr); background: rgba(160,80,180,0.08); }
+.vfx-chip--neutral.active { border-color: var(--text-muted); color: var(--text); }
+
+/* ── VFX Card wrapper & intensity pips ──────────────────────── */
+.vfx-card-wrapper { display: flex; flex-direction: column; }
+.vfx-intensity-pips { display: flex; gap: 2px; margin-bottom: 0.25rem; }
+.vfx-pip {
+  width: 10px; height: 4px; border-radius: 2px;
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.vfx-pip.lit { background: var(--accent); border-color: var(--accent); }
+
+/* ── VFX Drawer toggle button ───────────────────────────────── */
+.vfx-drawer-toggle {
+  margin-top: 0.4rem; font-size: 0.7rem; padding: 0.2rem 0.5rem;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text-muted); border-radius: 4px; align-self: flex-start;
+  transition: color 120ms, border-color 120ms;
+}
+.vfx-drawer-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── VFX Inline detail drawer ───────────────────────────────── */
+.vfx-drawer {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+  padding: 0.75rem; display: flex; flex-direction: column; gap: 0.6rem;
+  animation: drawerSlide 120ms ease;
+}
+@keyframes drawerSlide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.vfx-drawer-meta { display: flex; flex-direction: column; gap: 0.35rem; }
+.vfx-drawer-field { display: flex; flex-direction: column; gap: 0.1rem; }
+.vfx-drawer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.vfx-drawer-value { font-size: 0.78rem; color: var(--text); line-height: 1.4; }
+.vfx-drawer-value.mono { font-family: monospace; color: var(--accent); }
+.vfx-drawer-tags .vfx-drawer-value { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.vfx-tag {
+  font-size: 0.68rem; padding: 0.15rem 0.4rem; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+}
+.vfx-drawer-brief-section { display: flex; flex-direction: column; gap: 0.35rem; }
+.vfx-brief-block {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  padding: 0.5rem 0.65rem; font-size: 0.72rem; line-height: 1.5; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; font-family: monospace;
+  max-height: 120px; overflow-y: auto;
+}
+.vfx-brief-block--negative { color: var(--danger); border-color: rgba(248,113,113,0.3); }
+.vfx-drawer-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
