@@ -118,3 +118,6 @@ A workflow is not verified until the acceptance criterion's required evidence le
 | 3 | "Badge changed from `queued` to `completed` — screenshot shows `COMPLETED` badge" | "The job completed" |
 | 4 | "File exists at `public/generated/…` — manifest entry shows `status: approved`, non-zero size confirmed" | "Generation succeeded" |
 
+### Playwright MCP Requirement
+
+If the task requires **Level 3 (State Transition)** or **Level 4 (Persistence/Export)** evidence, you **must** use Playwright MCP to capture the pre-state and post-state accessibility trees. Prose descriptions of state transitions from the AG browser subagent are not sufficient for Level 3/4 closure. The AG browser subagent should still be used for exploratory flows and visual recordings.
