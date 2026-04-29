@@ -55,3 +55,32 @@ Return from this workflow:
 - Pass/fail for each verification step
 - Any unexpected behaviors found
 - Whether existing features remain functional
+
+---
+
+## No Silent Skips
+
+Browser verification is **mandatory** when the trigger condition is met. It may not be deferred, substituted, or omitted.
+
+### What a silent skip looks like
+
+- Completing closeout without a screenshot or recording path when UI changed
+- Describing the UI as working without evidence ("the panel renders correctly")
+- Substituting a DOM snapshot, API harness, or endpoint check for a real browser session
+- Reporting "verified" when the dev server was not running and no follow-up was scheduled
+
+### If the dev server is unavailable
+
+State it explicitly in the closeout:
+
+> **Browser verification: BLOCKED** — port 3000 held by `<process>`. Server was not started. Verification is incomplete. Task is NOT accepted.
+
+Do not mark the task complete. Do not commit without flagging this gap. Request operator guidance on whether to free the port, reschedule, or accept the task as provisionally unverified.
+
+### If the operator waives browser verification
+
+The operator must say so explicitly. A waiver is not implied by silence, by a tight scope description, or by the absence of a browser verification instruction in the task prompt.
+
+### Consequence
+
+A task closed without required browser evidence must be re-opened. It is not accepted until the verification step is completed and evidence is embedded in the walkthrough.
