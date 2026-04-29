@@ -1,3 +1,10 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with `.agents/rules/10-operating-discipline.md`,
+> `.agents/rules/11-test-discipline.md`,
+> `.agents/rules/12-contract-protection.md`, or
+> `.agents/rules/13-closeout-discipline.md`, the newer rules control.
+> This is a stub-format workflow. Use it only if explicitly named in your task prompt.
+
 Run a Scene Lab combat review pass.
 
 Use Combat FX Test mode if available.

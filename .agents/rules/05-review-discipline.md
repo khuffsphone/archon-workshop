@@ -1,3 +1,7 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with rules/10–13, rules/10–13 control.
+> Rules `10-operating-discipline.md` and `13-closeout-discipline.md` are the authoritative replacements. This file is a thin subset of those.
+
 # Review discipline
 
 Before making code changes:

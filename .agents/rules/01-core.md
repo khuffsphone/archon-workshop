@@ -1,3 +1,7 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with rules/10–13, rules/10–13 control.
+> These core principles remain valid. For contract protection specifics, rule `12` is authoritative.
+
 # Core workshop rules
 
 - Patch in place.

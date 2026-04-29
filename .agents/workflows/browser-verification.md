@@ -84,3 +84,37 @@ The operator must say so explicitly. A waiver is not implied by silence, by a ti
 ### Consequence
 
 A task closed without required browser evidence must be re-opened. It is not accepted until the verification step is completed and evidence is embedded in the walkthrough.
+
+---
+
+## Evidence Ladder
+
+Do not treat UI presence as workflow verification.
+
+Evidence levels:
+
+1. **Presence evidence** — element exists in the DOM (button is visible, panel renders)
+2. **Action evidence** — user action was performed (button was clicked, form was submitted)
+3. **State transition evidence** — state changed as expected after the action (badge changed from `queued` → `completed`, toast appeared, list updated)
+4. **Persistence/export evidence** — result survived refresh, export, import, or manifest update (file exists on disk, manifest contains the new entry, ZIP contains the expected asset)
+
+A workflow is not verified until the acceptance criterion's required evidence level is reached.
+
+### Evidence level by feature type
+
+| Feature type | Minimum required evidence level |
+|---|---|
+| Button or panel renders | Level 1 (presence) — but this alone never closes a task |
+| Button click or form submit | Level 2 (action) |
+| Queue status change, toast, badge update | Level 3 (state transition) |
+| Asset generation, export, import, manifest update | Level 4 (persistence/export) |
+
+### What each level looks like in a report
+
+| Level | Acceptable | Not acceptable |
+|---|---|---|
+| 1 | "Screenshot shows the Generate Queued button with id `btn-vfx-queue-generate`" | "The button should be there" |
+| 2 | "Clicked btn-vfx-queue-generate — screenshot taken immediately after click" | "Clicked the button" |
+| 3 | "Badge changed from `queued` to `completed` — screenshot shows `COMPLETED` badge" | "The job completed" |
+| 4 | "File exists at `public/generated/…` — manifest entry shows `status: approved`, non-zero size confirmed" | "Generation succeeded" |
+

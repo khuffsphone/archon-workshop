@@ -1,3 +1,7 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with rules/10–13, rules/10–13 control.
+> Active replacements: rule `10` supersedes the Planning Mode and artifact sections; rule `13` supersedes the hygiene section.
+
 # Archon Workshop — Permanent Operating Rules
 
 ## Agent Mode Policy

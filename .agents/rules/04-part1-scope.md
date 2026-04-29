@@ -1,3 +1,7 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with rules/10–13, rules/10–13 control.
+> The scope principles here remain directionally valid. For current task scope, follow the confirmed execution-gate plan per rule `10-operating-discipline.md`.
+
 # Part 1 scope rules
 
 Part 1 is not "build everything".

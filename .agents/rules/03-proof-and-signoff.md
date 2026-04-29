@@ -1,3 +1,7 @@
+> **Legacy note:** This file predates the ARCHON-006 operating discipline.
+> If this file conflicts with rules/10–13, rules/10–13 control.
+> Rule `13-closeout-discipline.md` is the authoritative replacement for this file. It includes the Show Receipts requirement (exact commands + exit codes + raw output) which this file does not specify.
+
 # Proof and signoff rules
 
 Every completed task must leave:
