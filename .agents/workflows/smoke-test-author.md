@@ -75,3 +75,19 @@ node --import=tsx/esm scripts/smoke-test-<task-id>.mjs
 
 The smoke test must pass with `0 failed` before the task is committed.
 If it fails, fix the implementation — do not modify the test assertions.
+
+## If you believe an assertion is wrong
+
+Stop. Do not modify the test.
+
+Work through this checklist before touching any existing assertion:
+
+1. **Explain** what the assertion checks and why you believe it is incorrect
+2. **Identify** what acceptance criterion changed that would make the assertion obsolete
+3. **Confirm** why the implementation cannot satisfy the existing assertion as written
+4. **Produce** the exact proposed diff to the assertion
+
+Wait for operator approval before making any change.
+If approved, document the modification under "Test Files Modified" in the walkthrough closeout.
+
+**Modifying a test to make a failing implementation pass is a closeout violation.**

@@ -25,6 +25,21 @@ During HAS-008 implementation, a smoke test correctly identified that an acknowl
 - **If a test seems wrong, stop and explain why** before modifying it. Get operator approval before changing any assertion.
 - **Report exact results:** `N passed, 0 failed` with the full command used. Do not paraphrase.
 
+## Test Integrity Rules
+
+If a test exposes a logic defect, fix the logic. Do not weaken, move, delete, or reinterpret the test unless the operator explicitly approves that the test itself is invalid.
+
+Before modifying any existing test or smoke script, stop and explain:
+
+1. Why the current test is wrong or obsolete
+2. What acceptance criterion changed
+3. Why the implementation cannot satisfy the existing test
+4. The exact proposed test diff
+
+Do not change tests merely to make implementation pass.
+
+When tests are modified, disclose them separately in closeout under "Test Files Modified."
+
 ## Smoke test authoring expectations
 
 Every new feature or library module must include a smoke test.

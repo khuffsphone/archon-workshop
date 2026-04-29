@@ -69,6 +69,22 @@ S2: <section name> — N assertions ✅
 Total — N passed, 0 failed ✅
 ```
 
+### 5b. Test Files Modified (required — always present)
+
+If any smoke script or test file was modified during the task, list them here with reason:
+
+```markdown
+| File | Change | Reason |
+|---|---|---|
+| `scripts/smoke-test-archon-006b.mjs` | Updated hardcoded count from `=== 10` → `>= 12` | Catalog expanded from 10 to 12 presets per acceptance criterion |
+```
+
+If no test files were modified, write:
+
+> **Test Files Modified:** none
+
+This section is **required in every walkthrough**. Omitting it is a closeout violation, even when the answer is "none." An absent section cannot be distinguished from an undisclosed modification.
+
 ### 6. Browser verification results (if UI changed)
 
 ```markdown
@@ -98,6 +114,7 @@ Name the logical next task and why it follows from this one.
 ## Before the commit
 
 - [ ] Walkthrough file exists and all sections are complete (no "TBD")
+- [ ] Section 5b "Test Files Modified" is present — "none" if nothing changed
 - [ ] `git diff --stat` reviewed — only expected files in the diff
 - [ ] No frozen file appears in the diff without explicit acknowledgment
 - [ ] `git add` lists only files from the confirmed plan
