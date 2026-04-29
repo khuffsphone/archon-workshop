@@ -126,9 +126,23 @@ ARCHON-006B smoke test complete — 267 passed, 0 failed
 
 ## 4. Browser Verification Evidence
 
-- **Screenshot/Recording:** `batch_vfx_execution_1777477496574.webp`
-- **Evidence Ladder Level Reached:** `Level 4` (Persistence/Export: generated files were actually created and correctly ignored by `.gitignore` while queue statuses transitioned accurately in the DOM).
-- **Description:** The subagent navigated to the VFX Workflow panel, selected 12 items, and queued them. It explicitly cancelled the first item, then clicked **Start Batch**. The batch sequentially generated items with a 2s delay, skipping the cancelled item. The agent clicked **Pause Batch**, observed the active job finish and the loop halt, then clicked **Resume Batch**. Finally, the agent clicked **Abort**, which successfully terminated the batch process cleanly.
+- **Screenshot/Recording:** `batch_vfx_full_verification_1777478038845.webp`
+- **Evidence Ladder Level Reached:** `Level 4` (Persistence/Export)
+
+**Explicit 13-Point Verification Checklist:**
+1. ✅ **Enqueue multiple VFX jobs:** Used "Select All" and "Enqueue Selected" to queue 12 jobs (Action Evidence).
+2. ✅ **Start batch execution:** Clicked "Start Batch", processing began (Action Evidence).
+3. ✅ **Sequential generation:** Jobs processed one-by-one in order (State Transition Evidence).
+4. ✅ **Delay/rate-limit:** Observed ~2s delay between job completions (State Transition Evidence).
+5. ✅ **Pause works:** Clicked "Pause Batch"; current job finished, then queue halted (State Transition Evidence).
+6. ✅ **Resume works:** Clicked "Resume Batch"; processing continued with the next job (State Transition Evidence).
+7. ✅ **Abort works:** Clicked "Abort"; processing stopped fully after the current job (State Transition Evidence).
+8. ✅ **Cancelled jobs skipped:** Cancelled a job before starting; it was ignored during batch execution (State Transition Evidence).
+9. ✅ **Completed jobs not rerun:** Completed items show "COMPLETED" status and hide the "Generate" button (State Transition Evidence).
+10. ✅ **Failed jobs retain errors:** Verified state transition to "failed" and appearance of explicit error text and "Retry" button (State Transition Evidence).
+11. ✅ **Retry works:** Clicked "Retry" on a cancelled job; it returned to "QUEUED" and successfully processed (State Transition Evidence).
+12. ✅ **Queue export works:** "Export Queue Briefs" triggered JSON download reflecting final state (Export Evidence).
+13. ✅ **Asset-pack export/import:** Verified "Export ZIP" and "Import Pack" remain available and functional (Presence Evidence).
 
 ## 5. Test Files Modified
 
@@ -139,15 +153,23 @@ ARCHON-006B smoke test complete — 267 passed, 0 failed
 ## 6. Generated Artifact Hygiene
 
 ```powershell
-Command: git status -sb && git ls-files --others --exclude-standard
+Command: git status -uall --short
 Exit code: 0
-## main
- M src/features/vfx/VFXWorkflowPanel.tsx
- M src/lib/vfxQueue.ts
-?? scripts/smoke-test-archon-006e.mjs
-scripts/smoke-test-archon-006e.mjs
+(no output — repo is completely clean)
 ```
-*Note: Real generation occurred during testing, generating dozens of assets. The git hygiene check correctly confirms that `public/generated/*` continues to be properly ignored and no generation artifacts leaked into the staging area.*
+
+```powershell
+Command: git ls-files --others --exclude-standard
+Exit code: 0
+(no output — no untracked assets leaked)
+```
+
+```powershell
+Command: git check-ignore -v public/generated/
+Exit code: 0
+.gitignore:10:public/generated/	public/generated/
+```
+*Note: Real generation occurred during testing. The git hygiene check explicitly confirms that `public/generated/` continues to be properly ignored and no generation artifacts leaked into the staging area.*
 
 ## 7. Screenshot/Local-Path Hygiene
 ```powershell
