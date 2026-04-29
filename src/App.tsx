@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { INITIAL_ASSETS, Asset } from './lib/assetManifest';
 import { Toaster, toast } from 'sonner';
 import { GenerationPanel, useGeneration } from './features/generation/GenerationPanel';
+import type { GenerationResult } from './features/generation/GenerationPanel';
 import { ExportPanel } from './features/export/ExportPanel';
 import { VFXWorkflowPanel } from './features/vfx/VFXWorkflowPanel';
 import { SceneLabPanel } from './features/scenelab/SceneLabPanel';
@@ -335,10 +336,52 @@ export default function App() {
     });
   };
 
-  const handleGenerateSelected = async (ids: string[]) => {
+  type GenerationAttemptResult = {
+    id: string;
+    ok: boolean;
+    error?: string;
+  };
+
+  const handleGenerateSelected = async (ids: string[]): Promise<GenerationAttemptResult[]> => {
+    const results: GenerationAttemptResult[] = [];
+    // Take a snapshot of assets so each generation call sees the same baseline.
+    // (handleGenerate reads currentAssets from the second argument, not from stale closure)
+    let latestAssets = assets;
+
     for (const id of ids) {
-      await handleGenerate(id, assets);
+      const result: GenerationResult | null = await handleGenerate(id, latestAssets);
+
+      if (!result) {
+        // handleGenerate returns null when asset is not found or queue not ready
+        results.push({ id, ok: false, error: 'Asset not found or queue unavailable' });
+        continue;
+      }
+
+      if (result.status === 'success' && result.update) {
+        // Apply the update to assets state and save the manifest
+        setAssets(prev => {
+          const next = prev.map(a => a.id === id ? { ...a, ...result.update } : a);
+          saveManifest(next);
+          latestAssets = next;  // keep snapshot fresh for next iteration
+          return next;
+        });
+        results.push({ id, ok: true });
+      } else if (result.status === 'skipped') {
+        results.push({ id, ok: true });
+      } else {
+        // failed — update state with the failure info so the asset shows 'failed' in UI
+        if (result.update) {
+          setAssets(prev => {
+            const next = prev.map(a => a.id === id ? { ...a, ...result.update } : a);
+            latestAssets = next;
+            return next;
+          });
+        }
+        results.push({ id, ok: false, error: result.error ?? 'Generation failed' });
+      }
     }
+
+    return results;
   };
 
   // ─── Dashboard stats ───────────────────────────────────────────────────────

@@ -183,10 +183,47 @@ export function retryQueueEntry(
  * Recalculates priority on the remaining entries.
  * Returns a new array — does NOT mutate the input.
  */
-export function clearTerminalEntries(entries: VFXQueueEntry[]): VFXQueueEntry[] {
-  return entries
-    .filter(e => !TERMINAL_STATUSES.includes(e.status))
-    .map((e, i) => ({ ...e, priority: i }));
+export function clearTerminalEntries(queue: VFXQueueEntry[]): VFXQueueEntry[] {
+  const next = queue.filter(e => !TERMINAL_STATUSES.includes(e.status));
+  // Re-normalise priorities so they remain sequential
+  return next.map((e, i) => ({ ...e, priority: i }));
+}
+
+// ─── Generation Integration (ARCHON-006D) ────────────────────────────────────
+
+/** Moves a queued entry to generating status. Returns new array. */
+export function markEntryGenerating(queue: VFXQueueEntry[], queueId: string): VFXQueueEntry[] {
+  return queue.map(e => {
+    if (e.queueId !== queueId) return e;
+    // Only 'queued' entries can start generating
+    if (e.status !== 'queued') return e;
+    return { ...e, status: 'generating' };
+  });
+}
+
+/** Moves a generating entry to completed status, clearing any old errors. Returns new array. */
+export function markEntryCompleted(queue: VFXQueueEntry[], queueId: string): VFXQueueEntry[] {
+  return queue.map(e => {
+    if (e.queueId !== queueId) return e;
+    return {
+      ...e,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+      errorMessage: undefined,
+    };
+  });
+}
+
+/** Moves a generating entry to failed status with an error message. Returns new array. */
+export function markEntryFailed(queue: VFXQueueEntry[], queueId: string, error: string): VFXQueueEntry[] {
+  return queue.map(e => {
+    if (e.queueId !== queueId) return e;
+    return {
+      ...e,
+      status: 'failed',
+      errorMessage: error,
+    };
+  });
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────

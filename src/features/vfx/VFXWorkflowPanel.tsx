@@ -20,6 +20,9 @@ import {
   filterQueueByStatus,
   reorderEntry,
   exportQueueBriefAsJSON,
+  markEntryGenerating,
+  markEntryCompleted,
+  markEntryFailed,
 } from '../../lib/vfxQueue';
 import type { VFXQueueEntry } from '../../lib/vfxQueue';
 
@@ -30,7 +33,7 @@ export { COMBAT_SLICE_VFX_IDS };
 
 interface Props {
   assets: Asset[];
-  onGenerateSelected: (ids: string[]) => Promise<void>;
+  onGenerateSelected: (ids: string[]) => Promise<{ id: string; ok: boolean; error?: string }[]>;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   addLog: (msg: string, type?: 'info' | 'success' | 'error' | 'warning') => void;
@@ -39,8 +42,7 @@ interface Props {
 export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReject, addLog }: Props) {
   // ─── Catalog state ──────────────────────────────────────────────────────────
   const [selected, setSelected]         = useState<Set<string>>(new Set());
-  // isGenerating reserved for future real generation wiring (ARCHON-006D+)
-  const [isGenerating]                  = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [filterFamily, setFilterFamily] = useState<VFXFamily | null>(null);
   const [filterFaction, setFilterFaction] = useState<VFXFaction | null>(null);
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
@@ -171,6 +173,58 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
     URL.revokeObjectURL(url);
     toast.success('Queue briefs exported');
     addLog(`VFX queue briefs exported — ${vfxQueue.length} entries`);
+  };
+
+  const handleGenerateQueued = async () => {
+    const queuedEntries = vfxQueue.filter(e => e.status === 'queued');
+    if (queuedEntries.length === 0) { toast.warning('No queued entries'); return; }
+
+    setIsGenerating(true);
+    addLog(`Starting VFX generation for ${queuedEntries.length} queued entries…`, 'info');
+    toast.info(`Generating ${queuedEntries.length} VFX preset${queuedEntries.length === 1 ? '' : 's'}…`);
+
+    for (const entry of queuedEntries) {
+      // Re-check live status before launching — entry may have been cancelled during the loop
+      setVfxQueue(prev => {
+        const live = prev.find(e => e.queueId === entry.queueId);
+        if (!live || live.status === 'cancelled') return prev;
+        return markEntryGenerating(prev, entry.queueId);
+      });
+
+      // Read live status synchronously from current state snapshot
+      const liveBefore = vfxQueue.find(e => e.queueId === entry.queueId);
+      if (liveBefore?.status === 'cancelled') {
+        addLog(`Skipping cancelled entry: ${entry.presetName}`, 'info');
+        continue;
+      }
+
+      addLog(`Generating: ${entry.presetName} (${entry.assetSlot})`, 'info');
+
+      try {
+        // Delegate to the existing pipeline — captures results and updates assets/manifest
+        const results = await onGenerateSelected([entry.assetSlot]);
+        const result = results[0];
+
+        if (result?.ok) {
+          setVfxQueue(prev => markEntryCompleted(prev, entry.queueId));
+          addLog(`✅ Completed: ${entry.presetName}`, 'success');
+          toast.success(`VFX generated: ${entry.presetName}`);
+        } else {
+          const errMsg = result?.error ?? 'Unknown error';
+          setVfxQueue(prev => markEntryFailed(prev, entry.queueId, errMsg));
+          addLog(`❌ Failed: ${entry.presetName} — ${errMsg}`, 'error');
+          toast.error(`VFX failed: ${entry.presetName}`);
+        }
+      } catch (err: any) {
+        const errMsg = err?.message ?? 'Unexpected error';
+        setVfxQueue(prev => markEntryFailed(prev, entry.queueId, errMsg));
+        addLog(`❌ Error: ${entry.presetName} — ${errMsg}`, 'error');
+        toast.error(`VFX error: ${entry.presetName}`);
+      }
+    }
+
+    setIsGenerating(false);
+    addLog('VFX generation queue complete.', 'info');
   };
 
   const queueStatusColor = (status: VFXQueueEntry['status']) => {
@@ -397,7 +451,16 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
             {queueStats.cancelled > 0  && <span className="vfx-queue-stat stat-cancelled">🚫 {queueStats.cancelled} cancelled</span>}
           </div>
           <div className="vfx-queue-controls">
-                        <button
+            <button
+              id="btn-vfx-queue-generate"
+              className="btn-primary btn-sm"
+              onClick={handleGenerateQueued}
+              disabled={vfxQueue.filter(e => e.status === 'queued').length === 0}
+              title="Generate all queued VFX entries"
+            >
+              Generate Queued
+            </button>
+            <button
               id="btn-vfx-queue-export"
               className="btn-sm vfx-export-btn"
               onClick={handleExportQueueBriefs}
@@ -419,10 +482,9 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
         </div>
 
         {vfxQueue.length === 0 ? (
-                  <div className="vfx-queue-empty">
-          <p>No presets queued. Select presets above and click <strong>Enqueue Selected</strong>.</p>
-          <p className="vfx-queue-disclaimer">⚠️ This is a staging queue — enqueuing does not generate assets. Real generation requires ARCHON-006D+.</p>
-        </div>
+          <div className="vfx-queue-empty">
+            <p>No presets queued. Select presets above and click <strong>Enqueue Selected</strong>.</p>
+          </div>
         ) : (
           <div className="vfx-queue-list" id="vfx-queue-list">
             {vfxQueue.map((entry, index) => (

@@ -1,3 +1,5 @@
+import { VFX_CATALOG } from './vfxCatalog';
+
 export const STYLE_BIBLE = {
   theme: "Luminous Stained-Glass Fantasy",
   description: "A blend of retro-modern mythic warfare and premium dark-fantasy strategy UI. High contrast, elegant, readable.",
@@ -18,6 +20,12 @@ export const STYLE_BIBLE = {
 };
 
 export function getPromptForAsset(asset: any, preset: 'draft' | 'production' | 'premium' = 'production') {
+  // Override for VFX catalog presets
+  const vfxPreset = VFX_CATALOG.find(p => p.asset_slot === asset.id);
+  if (vfxPreset) {
+    return vfxPreset.prompt_brief;
+  }
+
   const detailLevel = preset === 'draft' ? "minimal detail" : preset === 'premium' ? "hyper-detailed, intricate textures, cinematic lighting" : "detailed";
   const baseStyle = `${STYLE_BIBLE.theme} style, high contrast, elegant, mythic warfare aesthetic, premium game art, ${detailLevel}.`;
   const cutoutInstructions = asset.requiresCutout ? "Centered subject on a PURE SOLID WHITE background. High edge contrast. No background texture. No cast shadow extending into the background. No white elements touching the silhouette edge." : "";
