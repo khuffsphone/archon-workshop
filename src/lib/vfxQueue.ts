@@ -226,6 +226,37 @@ export function markEntryFailed(queue: VFXQueueEntry[], queueId: string, error: 
   });
 }
 
+// ─── Batch Execution Helpers (ARCHON-006E) ──────────────────────────────────
+
+/**
+ * Selects the next eligible queued entry for batch processing.
+ * Deterministically returns the first 'queued' entry ordered by priority.
+ */
+export function selectNextBatchJob(queue: VFXQueueEntry[]): VFXQueueEntry | null {
+  const queued = queue.filter(e => e.status === 'queued');
+  if (queued.length === 0) return null;
+  // Note: priority is lower-is-better (0 is first)
+  queued.sort((a, b) => a.priority - b.priority);
+  return queued[0];
+}
+
+/**
+ * Determines if the batch runner should proceed based on the control state.
+ */
+export function canRunNextJob(controlState: 'idle' | 'running' | 'paused' | 'abort'): boolean {
+  return controlState === 'running';
+}
+
+/**
+ * Calculates the exact delay needed before the next provider call
+ * to satisfy the rate limit safely.
+ */
+export function calculateBatchDelay(lastProviderCallMs: number, rateLimitMs: number): number {
+  if (lastProviderCallMs === 0) return 0;
+  const elapsed = Date.now() - lastProviderCallMs;
+  return Math.max(0, rateLimitMs - elapsed);
+}
+
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Asset } from '../../lib/assetManifest';
 import { toast } from 'sonner';
 import {
@@ -23,6 +23,8 @@ import {
   markEntryGenerating,
   markEntryCompleted,
   markEntryFailed,
+  selectNextBatchJob,
+  calculateBatchDelay,
 } from '../../lib/vfxQueue';
 import type { VFXQueueEntry } from '../../lib/vfxQueue';
 
@@ -47,8 +49,17 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
   const [filterFaction, setFilterFaction] = useState<VFXFaction | null>(null);
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
 
-  // ─── Queue state ────────────────────────────────────────────────────────────
+  // ─── Queue & Batch state ────────────────────────────────────────────────────
   const [vfxQueue, setVfxQueue] = useState<VFXQueueEntry[]>([]);
+  const [batchState, setBatchState] = useState<'idle' | 'running' | 'paused' | 'abort'>('idle');
+  const batchControlRef = useRef<'idle' | 'running' | 'paused' | 'abort'>('idle');
+
+  const setBatchControl = (state: 'idle' | 'running' | 'paused' | 'abort') => {
+    batchControlRef.current = state;
+    setBatchState(state);
+  };
+
+  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
   // ─── Derived ────────────────────────────────────────────────────────────────
 
@@ -175,33 +186,68 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
     addLog(`VFX queue briefs exported — ${vfxQueue.length} entries`);
   };
 
-  const handleGenerateQueued = async () => {
+  const handleStartBatch = async () => {
+    if (batchState !== 'idle' && batchState !== 'paused') return;
+
+    if (batchState === 'paused') {
+      setBatchControl('running');
+      addLog('Batch execution resumed.', 'info');
+      toast.info('Batch resumed');
+      return;
+    }
+
     const queuedEntries = vfxQueue.filter(e => e.status === 'queued');
     if (queuedEntries.length === 0) { toast.warning('No queued entries'); return; }
 
     setIsGenerating(true);
-    addLog(`Starting VFX generation for ${queuedEntries.length} queued entries…`, 'info');
-    toast.info(`Generating ${queuedEntries.length} VFX preset${queuedEntries.length === 1 ? '' : 's'}…`);
+    setBatchControl('running');
+    addLog(`Starting VFX batch generation for ${queuedEntries.length} queued entries…`, 'info');
+    toast.info(`Generating ${queuedEntries.length} VFX preset(s) sequentially…`);
 
-    for (const entry of queuedEntries) {
-      // Re-check live status before launching — entry may have been cancelled during the loop
-      setVfxQueue(prev => {
-        const live = prev.find(e => e.queueId === entry.queueId);
-        if (!live || live.status === 'cancelled') return prev;
-        return markEntryGenerating(prev, entry.queueId);
-      });
+    let lastProviderCallMs = 0;
+    const RATE_LIMIT_MS = 2000;
 
-      // Read live status synchronously from current state snapshot
-      const liveBefore = vfxQueue.find(e => e.queueId === entry.queueId);
-      if (liveBefore?.status === 'cancelled') {
-        addLog(`Skipping cancelled entry: ${entry.presetName}`, 'info');
+    let loopActive = true;
+    while (loopActive) {
+      if (batchControlRef.current === 'abort') {
+        addLog('Batch aborted by user.', 'warning');
+        toast.error('Batch aborted');
+        break;
+      }
+
+      if (batchControlRef.current === 'paused') {
+        await delay(200);
         continue;
       }
 
+      let nextJob: VFXQueueEntry | null = null;
+      // Get the freshest queue state safely
+      setVfxQueue(prev => {
+        nextJob = selectNextBatchJob(prev);
+        return prev;
+      });
+
+      // Wait a tick for state updates if needed, though the above is synchronous for the local variable
+      await delay(10); 
+
+      if (!nextJob) {
+        break;
+      }
+      
+      const entry = nextJob as VFXQueueEntry;
+
+      const delayNeeded = calculateBatchDelay(lastProviderCallMs, RATE_LIMIT_MS);
+      if (delayNeeded > 0 && lastProviderCallMs > 0) {
+        await delay(delayNeeded);
+        if (batchControlRef.current === 'abort') break;
+        if (batchControlRef.current === 'paused') continue;
+      }
+
+      setVfxQueue(prev => markEntryGenerating(prev, entry.queueId));
       addLog(`Generating: ${entry.presetName} (${entry.assetSlot})`, 'info');
 
       try {
-        // Delegate to the existing pipeline — captures results and updates assets/manifest
+        lastProviderCallMs = Date.now();
         const results = await onGenerateSelected([entry.assetSlot]);
         const result = results[0];
 
@@ -223,8 +269,21 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
       }
     }
 
+    setBatchControl('idle');
     setIsGenerating(false);
-    addLog('VFX generation queue complete.', 'info');
+    addLog('VFX batch execution complete or stopped.', 'info');
+  };
+
+  const handlePauseBatch = () => {
+    setBatchControl('paused');
+    addLog('Batch execution paused.', 'info');
+    toast.info('Batch paused (in-flight job will finish)');
+  };
+
+  const handleAbortBatch = () => {
+    setBatchControl('abort');
+    addLog('Requesting batch abort…', 'warning');
+    toast.warning('Aborting batch (in-flight job will finish)');
   };
 
   const queueStatusColor = (status: VFXQueueEntry['status']) => {
@@ -451,20 +510,52 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
             {queueStats.cancelled > 0  && <span className="vfx-queue-stat stat-cancelled">🚫 {queueStats.cancelled} cancelled</span>}
           </div>
           <div className="vfx-queue-controls">
-            <button
-              id="btn-vfx-queue-generate"
-              className="btn-primary btn-sm"
-              onClick={handleGenerateQueued}
-              disabled={vfxQueue.filter(e => e.status === 'queued').length === 0}
-              title="Generate all queued VFX entries"
-            >
-              Generate Queued
-            </button>
+            {batchState === 'idle' && (
+              <button
+                id="btn-vfx-queue-generate"
+                className="btn-primary btn-sm"
+                onClick={handleStartBatch}
+                disabled={vfxQueue.filter(e => e.status === 'queued').length === 0}
+                title="Generate all queued VFX entries sequentially"
+              >
+                Start Batch
+              </button>
+            )}
+            {batchState === 'running' && (
+              <button
+                id="btn-vfx-queue-pause"
+                className="btn-secondary btn-sm"
+                onClick={handlePauseBatch}
+                title="Pause batch execution after current job"
+              >
+                Pause Batch
+              </button>
+            )}
+            {batchState === 'paused' && (
+              <button
+                id="btn-vfx-queue-resume"
+                className="btn-primary btn-sm"
+                onClick={handleStartBatch}
+                title="Resume paused batch execution"
+              >
+                Resume Batch
+              </button>
+            )}
+            {(batchState === 'running' || batchState === 'paused') && (
+              <button
+                id="btn-vfx-queue-abort"
+                className="btn-danger-sm"
+                onClick={handleAbortBatch}
+                title="Abort batch execution after current job"
+              >
+                Abort
+              </button>
+            )}
             <button
               id="btn-vfx-queue-export"
               className="btn-sm vfx-export-btn"
               onClick={handleExportQueueBriefs}
-              disabled={vfxQueue.length === 0}
+              disabled={vfxQueue.length === 0 || batchState !== 'idle'}
               title="Export queue entries as a JSON brief package"
             >
               Export Queue Briefs
@@ -473,13 +564,19 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
               id="btn-vfx-queue-clear"
               className="btn-sm btn-danger-sm"
               onClick={handleClearQueue}
-              disabled={vfxQueue.filter(e => e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled').length === 0}
+              disabled={vfxQueue.filter(e => e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled').length === 0 || batchState !== 'idle'}
               title="Remove all completed, failed, and cancelled entries from the queue"
             >
               Clear Finished
             </button>
           </div>
         </div>
+        
+        {batchState !== 'idle' && (
+          <div className="vfx-batch-warning">
+            <small>⚠️ Warning: Batch processing is active. This makes sequential calls to the AI provider.</small>
+          </div>
+        )}
 
         {vfxQueue.length === 0 ? (
           <div className="vfx-queue-empty">
