@@ -53,6 +53,7 @@ Use workflows when the trigger condition is met. Do not use a workflow speculati
 | Explicitly requested, or working on validators, persistence, queue lifecycle, import/export, freeze-list logic, bug fixes, contract-sensitive code | `strict-tdd.md` |
 | Any task that generates, saves, exports, or imports files (images, audio, ZIPs, manifests) | `generated-artifact-hygiene.md` |
 | Every task before committing | `docs-closeout.md` |
+| Every implementation or verification task before closeout | `evidence-receipt.md` |
 | Task adds or changes game asset generation pipeline | `game-asset-pipeline.md` |
 | Task involves UI tooling or panel components | `ui-tooling-review.md` |
 

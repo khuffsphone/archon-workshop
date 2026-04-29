@@ -8,7 +8,7 @@
 
 ## Walkthrough file
 
-Create or update `docs/walkthrough-<task-id>.md` before committing.
+Create or update `docs/walkthrough-<task-id>.md` before committing. You MUST use the evidence template at `docs/evidence-receipt-template.md` to format your verification receipts.
 
 Naming:
 ```
@@ -115,6 +115,8 @@ Name the logical next task and why it follows from this one.
 
 - [ ] Walkthrough file exists and all sections are complete (no "TBD")
 - [ ] Section 5b "Test Files Modified" is present — "none" if nothing changed
+- [ ] Evidence Receipt template structure is used
+- [ ] `node scripts/check-evidence-receipt.mjs docs/walkthrough-<task-id>.md` runs successfully
 - [ ] `git diff --stat` reviewed — only expected files in the diff
 - [ ] No frozen file appears in the diff without explicit acknowledgment
 - [ ] `git add` lists only files from the confirmed plan
