@@ -414,3 +414,56 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-icon:hover:not(:disabled) { background: var(--border); color: #e5e7eb; }
 .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-icon--danger:hover:not(:disabled) { background: rgba(248,113,113,0.2); color: #f87171; border-color: rgba(248,113,113,0.4); }
+
+/* ── VFX Queue Lifecycle additions (ARCHON-006C patch) ───────────────────────── */
+
+/* Cancelled stat chip */
+.vfx-queue-stat.stat-cancelled { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+/* Cancelled badge */
+.vfx-queue-badge--completed  { background: rgba(74,222,128,0.2);   color: #4ade80; }
+.vfx-queue-badge--cancelled  { background: rgba(167,139,250,0.2);  color: #a78bfa; }
+/* (failed already covered by --failed in original block — add here for explicitness) */
+.vfx-queue-badge--failed     { background: rgba(248,113,113,0.2);  color: #f87171; }
+.vfx-queue-badge--queued     { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.vfx-queue-badge--generating { background: rgba(250,204,21,0.2);   color: #facc15; }
+
+/* Row action buttons (Cancel / Retry) sit between badge and reorder controls */
+.vfx-queue-row-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-action-cancel {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid rgba(248,113,113,0.35);
+  background: rgba(248,113,113,0.1);
+  color: #f87171;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btn-action-cancel:hover { background: rgba(248,113,113,0.22); }
+
+.btn-action-retry {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid rgba(167,139,250,0.35);
+  background: rgba(167,139,250,0.1);
+  color: #a78bfa;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.btn-action-retry:hover { background: rgba(167,139,250,0.22); }
+
+/* Staging disclaimer text inside empty and non-empty queue */
+.vfx-queue-disclaimer {
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin: 0.25rem 0 0;
+  font-style: italic;
+}

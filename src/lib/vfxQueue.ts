@@ -6,27 +6,34 @@
  * This module is the single source of truth for:
  *   - VFXQueueEntry and VFXQueueState types
  *   - Queue builder: buildQueueEntry()
- *   - Queue helpers: getQueueStats(), filterQueueByStatus(),
- *                    exportQueueBriefAsJSON(), reorderEntry()
+ *   - Lifecycle helpers: cancelQueueEntry(), retryQueueEntry()
+ *   - Batch helpers: clearTerminalEntries(), reorderEntry()
+ *   - Stats / filter / export: getQueueStats(), filterQueueByStatus(),
+ *                               exportQueueBriefAsJSON()
  *
  * This module is:
  *   - Pure — no I/O, no React, no server calls, no fetch()
+ *   - Non-mutating — every helper returns a new array or object; inputs are never modified
  *   - Safe to import in Node.js smoke tests without a browser/DOM
  *
  * Protected contracts NOT touched by this module:
  *   - CombatPackManifest / COMBAT_PACK_SCHEMA_VERSION
- *   - asset-manifest.json
- *   - INITIAL_ASSETS
+ *   - asset-manifest.json / INITIAL_ASSETS
  *   - ZIP export/import pipeline
  *   - WorkshopUIState / workshopPersistence.ts
  *   - archon-game consumer expectations
  *
  * Design note (ARCHON-006C):
- *   The 12 VFX catalog asset slots (e.g. combat-hit-flash-light) do NOT
- *   exist in INITIAL_ASSETS. The existing handleGenerate() pipeline silently
- *   returns null for them. This queue is a staging layer that captures VFX
- *   preset intent for future wiring to real generation (ARCHON-006D+).
- *   Status stays 'queued' permanently in this task.
+ *   This is a STAGING / PLANNING queue. The 12 VFX catalog slots do NOT exist
+ *   in INITIAL_ASSETS so no real generation is triggered here.
+ *   Entries begin as 'queued' and can be cancelled, retried, or cleared.
+ *   Real generation wiring is ARCHON-006D+ scope.
+ *
+ * Lifecycle state machine:
+ *   queued ──cancel──▶ cancelled ──retry──▶ queued
+ *   queued ──(future wiring)──▶ generating ──▶ completed | failed
+ *   failed  ──retry──▶ queued
+ *   completed / cancelled / failed ──clearTerminalEntries──▶ (removed)
  */
 
 import type { VFXPreset, VFXFamily, VFXFaction, VFXIntensity } from './vfxCatalog';
@@ -36,9 +43,12 @@ import type { VFXPreset, VFXFamily, VFXFaction, VFXIntensity } from './vfxCatalo
 export type VFXQueueStatus =
   | 'queued'
   | 'generating'
-  | 'done'
+  | 'completed'
   | 'failed'
-  | 'skipped';
+  | 'cancelled';
+
+/** Statuses that represent a finished (terminal) lifecycle state */
+export const TERMINAL_STATUSES: VFXQueueStatus[] = ['completed', 'failed', 'cancelled'];
 
 export interface VFXQueueEntry {
   /** Unique per enqueue operation — allows the same preset to be enqueued multiple times */
@@ -63,10 +73,12 @@ export interface VFXQueueEntry {
   enqueuedAt: string;
   /** ISO 8601 timestamp when generation started (set by generation wiring — ARCHON-006D+) */
   startedAt?: string;
-  /** ISO 8601 timestamp when generation completed or failed */
+  /** ISO 8601 timestamp when entry reached a terminal state */
   completedAt?: string;
   /** Error detail if status === 'failed' */
   errorMessage?: string;
+  /** Number of times this entry has been retried */
+  retryCount: number;
   /**
    * Display priority ordinal — lower number = higher priority (runs first).
    * Assigned sequentially at enqueue time; can be reordered by the operator.
@@ -77,9 +89,9 @@ export interface VFXQueueEntry {
 export interface VFXQueueStats {
   queued: number;
   generating: number;
-  done: number;
+  completed: number;
   failed: number;
-  skipped: number;
+  cancelled: number;
   total: number;
 }
 
@@ -119,8 +131,62 @@ export function buildQueueEntry(preset: VFXPreset, priority: number): VFXQueueEn
     promptBrief: preset.prompt_brief,
     status:      'queued',
     enqueuedAt:  new Date().toISOString(),
+    retryCount:  0,
     priority,
   };
+}
+
+// ─── Lifecycle transitions ────────────────────────────────────────────────────
+
+/**
+ * Cancels a queued entry by queueId.
+ * Only transitions entries with status === 'queued'; all others are unchanged.
+ * Returns a new array — does NOT mutate the input.
+ */
+export function cancelQueueEntry(
+  entries: VFXQueueEntry[],
+  queueId: string,
+): VFXQueueEntry[] {
+  return entries.map(e => {
+    if (e.queueId !== queueId) return e;
+    if (e.status !== 'queued') return e; // only queued entries can be cancelled
+    return { ...e, status: 'cancelled' as VFXQueueStatus, completedAt: new Date().toISOString() };
+  });
+}
+
+/**
+ * Retries a cancelled or failed entry by queueId.
+ * Transitions status back to 'queued' and increments retryCount.
+ * Only transitions entries with status === 'cancelled' | 'failed'; others unchanged.
+ * Returns a new array — does NOT mutate the input.
+ */
+export function retryQueueEntry(
+  entries: VFXQueueEntry[],
+  queueId: string,
+): VFXQueueEntry[] {
+  return entries.map(e => {
+    if (e.queueId !== queueId) return e;
+    if (e.status !== 'cancelled' && e.status !== 'failed') return e;
+    return {
+      ...e,
+      status:       'queued' as VFXQueueStatus,
+      retryCount:   e.retryCount + 1,
+      errorMessage: undefined,
+      completedAt:  undefined,
+    };
+  });
+}
+
+/**
+ * Removes all entries whose status is in TERMINAL_STATUSES
+ * (completed, failed, cancelled). Does NOT remove generating or queued entries.
+ * Recalculates priority on the remaining entries.
+ * Returns a new array — does NOT mutate the input.
+ */
+export function clearTerminalEntries(entries: VFXQueueEntry[]): VFXQueueEntry[] {
+  return entries
+    .filter(e => !TERMINAL_STATUSES.includes(e.status))
+    .map((e, i) => ({ ...e, priority: i }));
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
@@ -130,7 +196,8 @@ export function buildQueueEntry(preset: VFXPreset, priority: number): VFXQueueEn
  */
 export function getQueueStats(entries: VFXQueueEntry[]): VFXQueueStats {
   const stats: VFXQueueStats = {
-    queued: 0, generating: 0, done: 0, failed: 0, skipped: 0, total: entries.length,
+    queued: 0, generating: 0, completed: 0, failed: 0, cancelled: 0,
+    total: entries.length,
   };
   for (const e of entries) {
     stats[e.status]++;
@@ -185,7 +252,7 @@ export function reorderEntry(
 export function exportQueueBriefAsJSON(entries: VFXQueueEntry[]): string {
   const payload: VFXQueueBriefExport = {
     exported_at:   new Date().toISOString(),
-    queue_version: 1,
+    queue_version: 2,
     entry_count:   entries.length,
     stats:         getQueueStats(entries),
     entries,

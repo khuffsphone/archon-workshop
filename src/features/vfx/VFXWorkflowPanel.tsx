@@ -13,6 +13,9 @@ import {
 import type { VFXPreset, VFXFamily, VFXFaction } from '../../lib/vfxCatalog';
 import {
   buildQueueEntry,
+  cancelQueueEntry,
+  retryQueueEntry,
+  clearTerminalEntries,
   getQueueStats,
   filterQueueByStatus,
   reorderEntry,
@@ -35,8 +38,9 @@ interface Props {
 
 export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReject, addLog }: Props) {
   // ─── Catalog state ──────────────────────────────────────────────────────────
-  const [selected, setSelected]       = useState<Set<string>>(new Set());
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [selected, setSelected]         = useState<Set<string>>(new Set());
+  // isGenerating reserved for future real generation wiring (ARCHON-006D+)
+  const [isGenerating]                  = useState(false);
   const [filterFamily, setFilterFamily] = useState<VFXFamily | null>(null);
   const [filterFaction, setFilterFaction] = useState<VFXFaction | null>(null);
   const [openDrawerId, setOpenDrawerId] = useState<string | null>(null);
@@ -116,6 +120,18 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
 
   // ─── Queue handlers ─────────────────────────────────────────────────────────
 
+  const handleCancelEntry = (queueId: string) => {
+    setVfxQueue(prev => cancelQueueEntry(prev, queueId));
+    addLog('VFX queue entry cancelled.', 'info');
+    toast.info('Entry cancelled');
+  };
+
+  const handleRetryEntry = (queueId: string) => {
+    setVfxQueue(prev => retryQueueEntry(prev, queueId));
+    addLog('VFX queue entry retried.', 'info');
+    toast.success('Entry re-queued for generation');
+  };
+
   const handleRemoveEntry = (queueId: string) => {
     setVfxQueue(prev => {
       const next = prev.filter(e => e.queueId !== queueId);
@@ -134,11 +150,13 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
   };
 
   const handleClearQueue = () => {
-    const nonActive = vfxQueue.filter(e => e.status !== 'generating');
-    if (nonActive.length === 0) { toast.info('Nothing to clear'); return; }
-    setVfxQueue(prev => prev.filter(e => e.status === 'generating'));
-    addLog('VFX queue cleared.', 'info');
-    toast.success('Queue cleared');
+    const terminalCount = vfxQueue.filter(e =>
+      e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled'
+    ).length;
+    if (terminalCount === 0) { toast.info('No finished entries to clear'); return; }
+    setVfxQueue(prev => clearTerminalEntries(prev));
+    addLog(`Cleared ${terminalCount} finished VFX queue entries.`, 'info');
+    toast.success(`Cleared ${terminalCount} finished entr${terminalCount === 1 ? 'y' : 'ies'}`);
   };
 
   const handleExportQueueBriefs = () => {
@@ -158,9 +176,9 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
   const queueStatusColor = (status: VFXQueueEntry['status']) => {
     if (status === 'queued')     return '#888';
     if (status === 'generating') return '#facc15';
-    if (status === 'done')       return '#4ade80';
+    if (status === 'completed')  return '#4ade80';
     if (status === 'failed')     return '#f87171';
-    if (status === 'skipped')    return '#a78bfa';
+    if (status === 'cancelled')  return '#a78bfa';
     return '#888';
   };
 
@@ -372,13 +390,14 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
             <span className="vfx-queue-count">{vfxQueue.length}</span>
           </h3>
           <div className="vfx-queue-stats">
-            {queueStats.queued > 0     && <span className="vfx-queue-stat stat-queued">⏳ {queueStats.queued} queued</span>}
+                      {queueStats.queued > 0     && <span className="vfx-queue-stat stat-queued">⏳ {queueStats.queued} queued</span>}
             {queueStats.generating > 0 && <span className="vfx-queue-stat stat-generating">⚡ {queueStats.generating} generating</span>}
-            {queueStats.done > 0       && <span className="vfx-queue-stat stat-done">✅ {queueStats.done} done</span>}
+            {queueStats.completed > 0  && <span className="vfx-queue-stat stat-done">✅ {queueStats.completed} completed</span>}
             {queueStats.failed > 0     && <span className="vfx-queue-stat stat-failed">❌ {queueStats.failed} failed</span>}
+            {queueStats.cancelled > 0  && <span className="vfx-queue-stat stat-cancelled">🚫 {queueStats.cancelled} cancelled</span>}
           </div>
           <div className="vfx-queue-controls">
-            <button
+                        <button
               id="btn-vfx-queue-export"
               className="btn-sm vfx-export-btn"
               onClick={handleExportQueueBriefs}
@@ -391,18 +410,19 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
               id="btn-vfx-queue-clear"
               className="btn-sm btn-danger-sm"
               onClick={handleClearQueue}
-              disabled={vfxQueue.length === 0}
-              title="Remove all non-generating entries from the queue"
+              disabled={vfxQueue.filter(e => e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled').length === 0}
+              title="Remove all completed, failed, and cancelled entries from the queue"
             >
-              Clear Queue
+              Clear Finished
             </button>
           </div>
         </div>
 
         {vfxQueue.length === 0 ? (
-          <p className="vfx-queue-empty">
-            No presets queued. Select presets above and click <strong>Enqueue Selected</strong>.
-          </p>
+                  <div className="vfx-queue-empty">
+          <p>No presets queued. Select presets above and click <strong>Enqueue Selected</strong>.</p>
+          <p className="vfx-queue-disclaimer">⚠️ This is a staging queue — enqueuing does not generate assets. Real generation requires ARCHON-006D+.</p>
+        </div>
         ) : (
           <div className="vfx-queue-list" id="vfx-queue-list">
             {vfxQueue.map((entry, index) => (
@@ -430,10 +450,32 @@ export function VFXWorkflowPanel({ assets, onGenerateSelected, onApprove, onReje
                   <span className="vfx-queue-slot mono">{entry.assetSlot}</span>
                 </div>
 
-                {/* Status badge */}
+                                {/* Status badge */}
                 <span className={`vfx-queue-badge vfx-queue-badge--${entry.status}`}>
-                  {entry.status}
+                  {entry.status}{entry.retryCount > 0 ? ` (retry ${entry.retryCount})` : ''}
                 </span>
+
+                {/* Lifecycle action buttons */}
+                <div className="vfx-queue-row-actions">
+                  {entry.status === 'queued' && (
+                    <button
+                      id={`btn-queue-cancel-${entry.queueId}`}
+                      className="btn-sm btn-action-cancel"
+                      onClick={() => handleCancelEntry(entry.queueId)}
+                      title="Cancel this entry"
+                      aria-label={`Cancel ${entry.presetName}`}
+                    >Cancel</button>
+                  )}
+                  {(entry.status === 'cancelled' || entry.status === 'failed') && (
+                    <button
+                      id={`btn-queue-retry-${entry.queueId}`}
+                      className="btn-sm btn-action-retry"
+                      onClick={() => handleRetryEntry(entry.queueId)}
+                      title="Retry — move back to queued"
+                      aria-label={`Retry ${entry.presetName}`}
+                    >Retry</button>
+                  )}
+                </div>
 
                 {/* Reorder + remove controls */}
                 <div className="vfx-queue-row-controls">
