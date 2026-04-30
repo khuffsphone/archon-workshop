@@ -216,12 +216,12 @@ Command: git diff --stat
 ### Git diff --cached --stat (post-stage)
 ```powershell
 Command: git diff --cached --stat
- docs/archon-006-known-limitations-and-roadmap.md | [lines] +++
- docs/changelog.md                                | [lines] +++
- docs/release-archon-006-vfx-pipeline.md          | [lines] +++
- docs/runbook-vfx-pipeline.md                     | [lines] +++
- docs/walkthrough-archon-006g.md                  | [lines] +++
- 5 files changed, N insertions(+)
+ docs/archon-006-known-limitations-and-roadmap.md | 146 +++++++++++++
+ docs/changelog.md                                |  40 ++++
+ docs/release-archon-006-vfx-pipeline.md          | 183 ++++++++++++++++
+ docs/runbook-vfx-pipeline.md                     | 207 ++++++++++++++++++
+ docs/walkthrough-archon-006g.md                  | 265 +++++++++++++++++++++++
+ 5 files changed, 841 insertions(+)
 ```
 
 ### Final git status
