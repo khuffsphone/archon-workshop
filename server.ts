@@ -143,6 +143,22 @@ async function startServer() {
   // ── Save Asset ────────────────────────────────────────────────────────────
   app.post('/api/save-asset', async (req, res) => {
     const { id, data, type, requiresCutout, recipe } = req.body;
+
+    // -- Overwrite Protection Guard --
+    const canonicalId = id.replace(/-v\d+$/, '');
+    const manifestPath = MANIFEST_PATH();
+    if (fs.existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+        const asset = manifest.assets.find((a: any) => a.id === canonicalId);
+        if (asset && asset.asset_protected) {
+          return res.status(403).json({ error: `Asset '${canonicalId}' is protected by review approval and cannot be overwritten.` });
+        }
+      } catch (e) {
+        console.error('Failed to parse manifest during protection check:', e);
+      }
+    }
+
     let buffer: Buffer, extension = 'png', mime_type = 'image/png', codec = '';
 
     if (recipe) {

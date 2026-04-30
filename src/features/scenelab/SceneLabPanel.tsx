@@ -36,6 +36,8 @@ interface Props {
   onPresetChange: (p: ScenePresetKey) => void;
   reviewNotes: Record<string, string>;
   onReviewNotesChange: (notes: Record<string, string>) => void;
+  onApprove: (id: string, note?: string) => void;
+  onReject: (id: string, note?: string) => void;
 }
 
 export function SceneLabPanel({
@@ -45,6 +47,8 @@ export function SceneLabPanel({
   onPresetChange,
   reviewNotes,
   onReviewNotesChange,
+  onApprove,
+  onReject,
 }: Props) {
   const scene = SCENE_PRESETS[preset];
 
@@ -120,29 +124,42 @@ export function SceneLabPanel({
         {allApproved ? '✅ Combat Slice Assets: All Approved' : '⚠️ Combat Slice Assets: Pending Approval'}
       </div>
 
-      {/* VFX checklist */}
-      {scene.vfxIds.length > 0 && (
-        <div className="scenelab-vfx-list">
-          <h3>Required VFX</h3>
-          {scene.vfxIds.map(id => {
-            const a = getAsset(id);
-            return (
-              <div key={id} className="scenelab-vfx-row" id={`scenelab-vfx-${id}`}>
-                <span className="dot" style={{ background: a?.status === 'approved' ? '#4ade80' : '#888' }} />
-                <span className="vfx-id">{id}</span>
-                <span className="vfx-status">{a?.status ?? 'missing'}</span>
-                <input
-                  type="text"
-                  placeholder="Review note…"
-                  value={reviewNotes[id] ?? ''}
-                  onChange={e => updateNote(id, e.target.value)}
-                  className="review-note-input"
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Asset Review Checklist */}
+      <div className="scenelab-vfx-list">
+        <h3>Asset Review</h3>
+        {[scene.arena, scene.lightUnit, scene.darkUnit, ...scene.vfxIds].filter(Boolean).map(id => {
+          const a = getAsset(id);
+          return (
+            <div key={id} className="scenelab-vfx-row" id={`scenelab-vfx-${id}`}>
+              <span className="dot" style={{ background: a?.status === 'approved' ? '#4ade80' : '#888' }} />
+              <span className="vfx-id" title={id}>{id.length > 25 ? id.substring(0,22)+'...' : id}</span>
+              <span className="vfx-status" style={{ minWidth: '100px' }}>
+                {a?.status ?? 'missing'}
+                {a?.asset_protected && ' 🔒'}
+              </span>
+              <input
+                type="text"
+                placeholder="Review note…"
+                value={reviewNotes[id] ?? a?.notes ?? ''}
+                onChange={e => updateNote(id, e.target.value)}
+                className="review-note-input"
+              />
+              <button
+                className="btn-approve btn-sm"
+                onClick={() => onApprove(id, reviewNotes[id] ?? a?.notes)}
+                disabled={a?.status === 'approved' || !a}
+                style={{ marginLeft: '4px' }}
+              >Approve</button>
+              <button
+                className="btn-reject btn-sm"
+                onClick={() => onReject(id, reviewNotes[id] ?? a?.notes)}
+                disabled={a?.status === 'rejected' || !a}
+                style={{ marginLeft: '4px' }}
+              >Reject</button>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="scenelab-note">
         <strong>Reminder:</strong> All VFX must be reviewed here and approved before running "Export Combat Pack".

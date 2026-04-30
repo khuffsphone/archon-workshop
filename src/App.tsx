@@ -12,6 +12,7 @@ import {
   WORKSHOP_STATE_SCHEMA_VERSION,
 } from './lib/workshopPersistence';
 import type { WorkshopUIState, ValidTab, GenerationPreset, ScenePresetKey } from './lib/workshopPersistence';
+import { applyReview } from './lib/assetReview';
 
 // ─── Worker Queue ─────────────────────────────────────────────────────────────
 
@@ -305,22 +306,24 @@ export default function App() {
     setGenerationPreset, isGenerating, setIsGenerating, setCurrentStage, progress,
   });
 
-  // Approve / reject handlers (used by VFX panel)
-  const handleApprove = async (assetId: string) => {
+  // Approve / reject handlers (used by VFX panel and Scene Lab)
+  const handleApprove = async (assetId: string, note?: string) => {
     setAssets(prev => {
       const updated = prev.map(a => {
         if (a.id !== assetId) return a;
         const versions = a.candidate_versions || [];
         const target = versions[versions.length - 1];
-        if (!target) return a;
-        return {
-          ...a, status: 'approved', approved_version: target.version,
-          current_display_version: target.version, path: target.path,
-          thumbnail_64: target.thumbnail_64, thumbnail_256: target.thumbnail_256,
-          hash: target.hash, mime_type: target.mime_type, codec: target.codec,
-          preferred_playback_file: target.path, asset_protected: true,
-          updated_at: new Date().toISOString(),
-        };
+        let baseA = a;
+        if (target) {
+          baseA = {
+            ...a, approved_version: target.version,
+            current_display_version: target.version, path: target.path,
+            thumbnail_64: target.thumbnail_64, thumbnail_256: target.thumbnail_256,
+            hash: target.hash, mime_type: target.mime_type, codec: target.codec,
+            preferred_playback_file: target.path,
+          };
+        }
+        return applyReview(baseA, { status: 'approved', note });
       });
       saveManifest(updated);
       return updated;
@@ -328,12 +331,13 @@ export default function App() {
     toast.success(`Asset ${assetId} approved`);
   };
 
-  const handleReject = (assetId: string) => {
+  const handleReject = (assetId: string, note?: string) => {
     setAssets(prev => {
-      const updated = prev.map(a => a.id === assetId ? { ...a, status: 'rejected' as const } : a);
+      const updated = prev.map(a => a.id === assetId ? applyReview(a, { status: 'rejected', note }) : a);
       saveManifest(updated);
       return updated;
     });
+    toast.info(`Asset ${assetId} rejected`);
   };
 
   type GenerationAttemptResult = {
@@ -479,6 +483,8 @@ export default function App() {
             onPresetChange={setSceneLabPreset}
             reviewNotes={sceneLabReviewNotes}
             onReviewNotesChange={setSceneLabReviewNotes}
+            onApprove={handleApprove}
+            onReject={handleReject}
           />
         )}
 
