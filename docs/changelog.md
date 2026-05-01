@@ -6,7 +6,49 @@ Format: `## [version or milestone] — YYYY-MM-DD`
 
 ---
 
+## [ARCHON-007 Review Workflow] — 2026-05-01
+
+### Added
+
+- **VFX Asset Review Workflow** (`src/lib/assetReview.ts`) — Pure, testable helper module for computing review state transitions (approve, reject, protect, derive status).
+- **Scene Lab Approve/Reject Controls** (`src/features/scenelab/SceneLabPanel.tsx`) — Per-asset Approve and Reject buttons with review note input. Approved assets display a 🔒 lock icon and have their Approve button disabled.
+- **Server-Side Overwrite Guard** (`server.ts`) — `POST /api/save-asset` returns `403 Forbidden` if the canonical asset ID (version suffix stripped) resolves to a protected asset. Prevents any overwrite of an approved asset.
+- **Review Queue Helpers** (`src/lib/reviewQueue.ts`) — Pure, non-mutating helpers: `getReviewStats` (summary counts), `filterAssetsByReviewStatus` (filter by state), `identifyActionableAssets` (generated & pending).
+- **Approval Dashboard** (`src/features/dashboard/DashboardPanel.tsx`) — New React component replacing the static Dashboard view. Provides live review summary counts, a filterable review queue (Pending / Approved / Rejected / Protected / All), inline approve/reject with note input, and a "Detailed Review (Scene Lab) →" navigation shortcut.
+- **Smoke Tests** — 2 new smoke test scripts: `007a` (36 assertions), `007c` (10 assertions).
+
+### Modified
+
+- `src/App.tsx` — Wired `handleApprove` / `handleReject` handlers, `dashboardReviewNotes` state, and `DashboardPanel` rendering.
+- `src/features/scenelab/SceneLabPanel.tsx` — Added review controls; corrected outdated `SCENE_PRESETS` IDs (007B stabilization fix).
+- `src/features/vfx/VFXWorkflowPanel.tsx` — Updated `onApprove`/`onReject` prop signatures to accept an optional `note?: string` parameter for type consistency.
+- `server.ts` — Added protected-asset overwrite guard to `/api/save-asset`.
+
+### Agent Discipline
+
+- **AG-013** (`.agents/rules/13-closeout-discipline.md`) — Added Closeout Language Guardrails: 10-entry claim-to-evidence mapping table requiring that claim words ("clean", "staged", "verified", "complete", etc.) be backed by matching command output before use.
+- Updated `.agents/workflows/browser-verification.md`, `docs-closeout.md`, `evidence-receipt.md`, and `.agents/README.md`.
+
+### Documentation
+
+- `docs/walkthrough-archon-007a.md` — 007A closeout walkthrough and evidence receipt.
+- `docs/walkthrough-archon-007b.md` — 007B stabilization walkthrough with Process Note on code-during-verification discipline.
+- `docs/walkthrough-archon-007c.md` — 007C Dashboard walkthrough with Playwright MCP state-transition evidence.
+- `docs/release-archon-007-review-workflow.md` — Release snapshot for the full 007 series.
+- `docs/archon-007-known-limitations-and-roadmap.md` — Known limitations and next milestone recommendations for 007.
+
+### Protected (Unchanged)
+
+- `CombatPackManifest` interface — frozen
+- `COMBAT_PACK_SCHEMA_VERSION` — frozen
+- `WORKSHOP_STATE_SCHEMA_VERSION` — frozen
+- ZIP export/import behavior — frozen
+- `archon-game` — untouched
+
+---
+
 ## [ARCHON-006 VFX Pipeline] — 2026-04-29
+
 
 ### Added
 
