@@ -61,6 +61,57 @@ This applies to:
 - `node --import=tsx/esm scripts/smoke-test-<task-id>.mjs`
 - Any other verification command run as part of closeout
 
+## Claim Language Requires Evidence
+
+AG may not use the following words or phrases in closeout summaries, walkthrough documents, or status reports unless the required evidence is shown immediately nearby (in the same section or within three lines):
+
+| Claim Word / Phrase | Required Evidence |
+|---|---|
+| clean | `git status -sb` showing no modified/untracked/ahead/behind state |
+| staged | `git diff --cached --name-only` showing the staged files |
+| verified | claim-to-evidence mapping or Evidence Ladder proof |
+| browser verified | Playwright MCP or browser evidence showing action + state transition, not only presence |
+| complete | all acceptance criteria mapped to evidence and final git status shown |
+| accepted | only the operator may accept; AG may say "ready for review" |
+| no files changed | `git status -sb` and/or relevant diff output |
+| docs-only | `git diff --name-only` showing only docs/config files |
+| generated artifacts ignored | `git check-ignore -v public/generated/` and `git status -uall --short` |
+| pushed | actual `git push` output or `git log --oneline -1` plus status evidence |
+
+If the evidence is missing, AG must write:
+
+> `CLAIM NOT ESTABLISHED`
+
+instead of using the claim word.
+
+### Examples
+
+**Bad:**
+
+> The repo is clean.
+
+> Files are staged and ready for commit.
+
+> Browser verified — the UI works.
+
+**Good:**
+
+> ```
+> > git status -sb
+> ## main...origin/main
+> ```
+> The repo has no modified, untracked, or ahead/behind state.
+
+> ```
+> > git diff --cached --name-only
+> src/features/scenelab/SceneLabPanel.tsx
+> docs/walkthrough-archon-007b.md
+> ```
+> Two files are staged as expected.
+
+> Playwright MCP accessibility snapshot after clicking Approve:
+> `combat-hit-flash-light` status changed from `pending` to `approved 🔒`. Approve button is now `[disabled]`. Evidence level: Level 3 (state transition).
+
 ## What "not complete" looks like
 
 - "Tests passed" without showing the count

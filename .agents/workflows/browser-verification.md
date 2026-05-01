@@ -91,6 +91,8 @@ A task closed without required browser evidence must be re-opened. It is not acc
 
 Do not treat UI presence as workflow verification.
 
+> **"Button visible" does not equal "verified."** Observing that an element exists in the DOM is Level 1 (presence) evidence only. Saying "browser verified" requires reaching the Evidence Ladder level demanded by the acceptance criterion. For state transitions (Level 3) and persistence checks (Level 4), Playwright MCP accessibility snapshots are required — not prose descriptions.
+
 Evidence levels:
 
 1. **Presence evidence** — element exists in the DOM (button is visible, panel renders)

@@ -111,6 +111,7 @@ Every task, without exception, must satisfy all of the following before yielding
 - [ ] Push confirmed with branch name
 
 A closeout that says "tests passed" without showing output is **invalid** under `13-closeout-discipline.md`.
+- A closeout that uses claim words (clean, staged, verified, complete, pushed) without paired evidence is **invalid** under `13-closeout-discipline.md` § "Claim Language Requires Evidence."
 
 ---
 

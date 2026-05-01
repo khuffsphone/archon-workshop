@@ -121,6 +121,7 @@ Name the logical next task and why it follows from this one.
 - [ ] No frozen file appears in the diff without explicit acknowledgment
 - [ ] `git add` lists only files from the confirmed plan
 - [ ] Commit message follows the format: `feat|fix|docs|chore: TASK-ID — <description> (<N>/<N> assertions)`
+- [ ] Claim-word audit — no prohibited claim words used without paired evidence (see `rules/13-closeout-discipline.md`)
 
 ## After the commit
 

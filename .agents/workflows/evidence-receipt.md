@@ -49,3 +49,13 @@ node scripts/check-evidence-receipt.mjs docs/walkthrough-<task-id>.md
 ```
 
 If the script fails (exit code > 0), your closeout is incomplete. Fix the walkthrough document to include the missing evidence sections before committing.
+
+## Claim-Word Audit
+
+Before finalizing a closeout, audit your walkthrough and summary for the following high-risk claim words:
+
+`clean` · `staged` · `verified` · `browser verified` · `complete` · `accepted` · `no files changed` · `docs-only` · `generated artifacts ignored` · `pushed`
+
+Each use must be paired with the required evidence defined in `rules/13-closeout-discipline.md` § "Claim Language Requires Evidence."
+
+> **Note:** The evidence receipt checker (`check-evidence-receipt.mjs`) validates section *presence*, not claim-word compliance. Passing the checker does not prove that claim words are properly evidenced.
