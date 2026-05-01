@@ -36,8 +36,8 @@ export { COMBAT_SLICE_VFX_IDS };
 interface Props {
   assets: Asset[];
   onGenerateSelected: (ids: string[]) => Promise<{ id: string; ok: boolean; error?: string }[]>;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string, note?: string) => void;
+  onReject: (id: string, note?: string) => void;
   addLog: (msg: string, type?: 'info' | 'success' | 'error' | 'warning') => void;
 }
 

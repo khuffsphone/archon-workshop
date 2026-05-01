@@ -6,6 +6,7 @@ import type { GenerationResult } from './features/generation/GenerationPanel';
 import { ExportPanel } from './features/export/ExportPanel';
 import { VFXWorkflowPanel } from './features/vfx/VFXWorkflowPanel';
 import { SceneLabPanel } from './features/scenelab/SceneLabPanel';
+import { DashboardPanel } from './features/dashboard/DashboardPanel';
 import {
   buildWorkshopState,
   validateWorkshopState,
@@ -173,6 +174,8 @@ export default function App() {
   // Scene Lab state lifted here for persistence
   const [sceneLabPreset, setSceneLabPreset] = useState<ScenePresetKey>('combat_knight_vs_sorceress');
   const [sceneLabReviewNotes, setSceneLabReviewNotes] = useState<Record<string, string>>({});
+  // Dashboard state (not persisted to WORKSHOP_STATE yet to avoid schema bump, survives tab switch)
+  const [dashboardReviewNotes, setDashboardReviewNotes] = useState<Record<string, string>>({});
 
   const bootstrapLock = useRef(false);
 
@@ -433,23 +436,16 @@ export default function App() {
       <main className="app-body">
         {/* Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="dashboard">
-            <div className="dashboard-cards">
-              <div className="stat-card"><div className="stat-num approved">{approved}</div><div className="stat-label">Approved</div></div>
-              <div className="stat-card"><div className="stat-num pending">{pending}</div><div className="stat-label">Pending</div></div>
-              <div className="stat-card"><div className="stat-num failed">{failed}</div><div className="stat-label">Failed</div></div>
-              <div className="stat-card"><div className="stat-num">{assets.length}</div><div className="stat-label">Total Assets</div></div>
-            </div>
-            <div className="progress-row">
-              <div className="progress-bar-track">
-                <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <span className="progress-label">{progress}% complete</span>
-            </div>
-            <div className="log-panel">
-              {logs.map((l, i) => <div key={i} className="log-line">{l}</div>)}
-            </div>
-          </div>
+          <DashboardPanel
+            assets={assets}
+            progress={progress}
+            logs={logs}
+            reviewNotes={dashboardReviewNotes}
+            onReviewNotesChange={setDashboardReviewNotes}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onNavigate={setActiveTab}
+          />
         )}
 
         {/* Generation */}
