@@ -11,10 +11,10 @@ const SCENE_PRESETS = {
     lightUnit: 'unit-light-knight-token',
     darkUnit: 'unit-dark-sorceress-token',
     vfxIds: [
-      'combat-hit-flash-light-medium',
-      'combat-hit-flash-dark-medium',
-      'combat-death-light',
-      'combat-death-dark',
+      'combat-hit-flash-light',
+      'combat-hit-flash-dark',
+      'combat-death-burst-light',
+      'combat-death-burst-dark',
     ],
   },
   board_overview: {
