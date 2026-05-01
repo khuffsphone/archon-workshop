@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import type { Asset } from '../../lib/assetManifest';
 import { assertPackVersion, validatePackAssets } from '../../lib/versionGuard';
 import type { CombatPackManifest } from '../../lib/assetManifest';
@@ -7,6 +7,11 @@ import JSZip from 'jszip';
 import { toast } from 'sonner';
 import type { WorkshopUIState } from '../../lib/workshopPersistence';
 import { validateWorkshopState, downloadWorkshopState, parseWorkshopStateFile } from '../../lib/workshopPersistence';
+import {
+  getExportReadinessReport,
+  getExportEligibilityRows,
+  type ExportEligibilityRow,
+} from '../../lib/exportEligibility';
 
 interface Props {
   assets: Asset[];
@@ -216,6 +221,145 @@ export async function importPack(
   toast.success('Pack imported successfully');
 }
 
+// ─── Export Eligibility Preview ───────────────────────────────────────────────
+// ARCHON-008B: Read-only derived view from exportEligibility helpers.
+// Does NOT trigger any export, generation, or mutation.
+// NOTE: eligibility here uses isExportEligible (approved+path). The actual
+// combat pack server export also applies tag filtering — this preview is a
+// readiness estimate, not a server simulation.
+
+const REASON_LABELS: Record<ExportEligibilityRow['exclusionReason'], string> = {
+  eligible:         '—',
+  rejected:         'Rejected by operator',
+  pending:          'Pending review',
+  generating:       'Generation in progress',
+  failed:           'Generation failed',
+  approved_no_path: 'Approved — no file generated yet',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  approved:           '#4ade80',
+  rejected:           '#f87171',
+  pending:            '#94a3b8',
+  generating:         '#facc15',
+  failed:             '#f87171',
+  recoverable_failed: '#fb923c',
+};
+
+function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
+  const rows = useMemo(() => getExportEligibilityRows(assets), [assets]);
+  const report = useMemo(() => getExportReadinessReport(assets, COMBAT_SLICE_REQUIRED_IDS), [assets]);
+
+  const ineligible = report.total - report.eligible;
+  const other = ineligible - report.rejected - report.pending;
+
+  return (
+    <div className="panel-section" id="export-eligibility-preview">
+      <h3 className="panel-section-label">Export Eligibility Preview</h3>
+      <p className="panel-section-desc">
+        Shows which assets will ship in a combat pack export and why others are excluded.
+        Eligibility is based on approval status and file presence.
+        <em> Note: actual server export also applies tag filtering — this is a readiness estimate.</em>
+      </p>
+
+      {/* ── Summary banner ── */}
+      <div style={{
+        display: 'flex', gap: '1rem', flexWrap: 'wrap',
+        marginBottom: '1rem', padding: '0.75rem 1rem',
+        background: 'rgba(255,255,255,0.04)', borderRadius: '8px',
+        border: `1px solid ${report.combatReady ? '#4ade8033' : '#f8717133'}`,
+      }}>
+        <span id="eligibility-badge" style={{
+          fontWeight: 700, fontSize: '1rem',
+          color: report.combatReady ? '#4ade80' : '#fb923c',
+        }}>
+          {report.combatReady ? '✅ Combat Ready' : '⚠️ Not Ready'}
+        </span>
+        <span className="eligibility-stat">Total: <strong>{report.total}</strong></span>
+        <span className="eligibility-stat" style={{ color: '#4ade80' }}>Eligible: <strong>{report.eligible}</strong></span>
+        <span className="eligibility-stat" style={{ color: '#f87171' }}>Excluded: <strong>{ineligible}</strong></span>
+        <span className="eligibility-stat">Rejected: <strong>{report.rejected}</strong></span>
+        <span className="eligibility-stat">Pending: <strong>{report.pending}</strong></span>
+        {other > 0 && <span className="eligibility-stat">Other: <strong>{other}</strong></span>}
+      </div>
+
+      {/* ── Missing required IDs ── */}
+      {report.missingRequired.length > 0 && (
+        <div style={{
+          marginBottom: '1rem', padding: '0.5rem 0.75rem',
+          background: 'rgba(251,146,60,0.08)', border: '1px solid #fb923c55',
+          borderRadius: '6px', fontSize: '0.8rem', color: '#fb923c',
+        }}>
+          <strong>⚠️ Missing required IDs ({report.missingRequired.length}):</strong>{' '}
+          {report.missingRequired.join(', ')}
+        </div>
+      )}
+
+      {/* ── Per-asset table ── */}
+      {rows.length === 0 ? (
+        <div style={{ color: '#888', fontSize: '0.85rem' }}>No assets in manifest yet.</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table id="eligibility-table" style={{
+            width: '100%', borderCollapse: 'collapse',
+            fontSize: '0.78rem', tableLayout: 'fixed',
+          }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', color: '#94a3b8' }}>
+                <th style={{ width: '26%', padding: '6px 4px' }}>Asset ID</th>
+                <th style={{ width: '16%', padding: '6px 4px' }}>Category</th>
+                <th style={{ width: '10%', padding: '6px 4px' }}>Status</th>
+                <th style={{ width: '6%',  padding: '6px 4px', textAlign: 'center' }}>🔒</th>
+                <th style={{ width: '6%',  padding: '6px 4px', textAlign: 'center' }}>File</th>
+                <th style={{ width: '12%', padding: '6px 4px', textAlign: 'center' }}>Eligible</th>
+                <th style={{ width: '24%', padding: '6px 4px' }}>Exclusion Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr
+                  key={row.id}
+                  id={`eligibility-row-${row.id}`}
+                  style={{
+                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                  }}
+                >
+                  <td style={{ padding: '5px 4px', fontFamily: 'monospace', wordBreak: 'break-all' }}>{row.id}</td>
+                  <td style={{ padding: '5px 4px', color: '#94a3b8' }}>
+                    {row.category}{row.faction ? ` · ${row.faction}` : ''}
+                  </td>
+                  <td style={{ padding: '5px 4px' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem',
+                      background: `${STATUS_COLORS[row.status] ?? '#888'}22`,
+                      color: STATUS_COLORS[row.status] ?? '#888',
+                      fontWeight: 600,
+                    }}>
+                      {row.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '5px 4px', textAlign: 'center' }}>{row.isProtected ? '🔒' : ''}</td>
+                  <td style={{ padding: '5px 4px', textAlign: 'center' }}>{row.hasPath ? '✅' : '❌'}</td>
+                  <td style={{ padding: '5px 4px', textAlign: 'center' }}>
+                    <span style={{ color: row.eligible ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                      {row.eligible ? '✅ Ships' : '❌ Excluded'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '5px 4px', color: row.eligible ? '#94a3b8' : '#fb923c', fontStyle: row.eligible ? 'normal' : 'italic' }}>
+                    {REASON_LABELS[row.exclusionReason]}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Panel UI ─────────────────────────────────────────────────────────────────
 
 export function ExportPanel({ assets, setAssets, saveManifest, addLog, onExportWorkshopState, onImportWorkshopState }: Props) {
@@ -311,6 +455,9 @@ export function ExportPanel({ assets, setAssets, saveManifest, addLog, onExportW
           <input ref={fileInputRef} type="file" accept=".zip" style={{ display: 'none' }} onChange={handleImport} />
         </div>
       </div>
+
+      {/* ── Export Eligibility Preview (ARCHON-008B — read-only, derived) ── */}
+      <ExportEligibilityPreview assets={assets} />
 
       {/* ── Workshop State (new — JSON only, separate from asset packs) ── */}
       <div className="panel-section">
