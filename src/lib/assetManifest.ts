@@ -143,14 +143,6 @@ export const INITIAL_ASSETS: Asset[] = [
   { id: 'spell-teleport', stage: 'D', category: 'spell', name: 'Teleport Icon', description: 'Spell icon for teleportation', status: 'pending', type: 'image', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
   { id: 'spell-heal', stage: 'D', category: 'spell', name: 'Heal Icon', description: 'Spell icon for healing', status: 'pending', type: 'image', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
   { id: 'status-wounded', stage: 'D', category: 'spell', name: 'Wounded Status', description: 'Status icon for wounded units', status: 'pending', type: 'image', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  // Combat VFX – Knight vs Sorceress slice subset
-  { id: 'combat-hit-flash-light-medium', stage: 'D', category: 'spell', subcategory: 'hit_flash', name: 'Hit Flash Light (M)', description: 'Medium sacred impact flash', status: 'pending', type: 'image', faction: 'light', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-hit-flash-dark-medium', stage: 'D', category: 'spell', subcategory: 'hit_flash', name: 'Hit Flash Dark (M)', description: 'Medium abyssal impact flash', status: 'pending', type: 'image', faction: 'dark', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-impact-spark-medium', stage: 'D', category: 'spell', subcategory: 'impact', name: 'Impact Spark (M)', description: 'Medium metallic impact sparks', status: 'pending', type: 'image', faction: 'neutral', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-death-light', stage: 'D', category: 'spell', subcategory: 'death', name: 'Death Light', description: 'Light-based death effect', status: 'pending', type: 'image', faction: 'light', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-death-dark', stage: 'D', category: 'spell', subcategory: 'death', name: 'Death Dark', description: 'Dark-based death effect', status: 'pending', type: 'image', faction: 'dark', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-nova-light', stage: 'D', category: 'spell', subcategory: 'nova', name: 'Nova Light', description: 'Expanding ring of holy light', status: 'pending', type: 'image', faction: 'light', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
-  { id: 'combat-nova-dark', stage: 'D', category: 'spell', subcategory: 'nova', name: 'Nova Dark', description: 'Expanding ring of shadow', status: 'pending', type: 'image', faction: 'dark', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
   { id: 'combat-spawn-light', stage: 'D', category: 'spell', subcategory: 'spawn', name: 'Spawn Light', description: 'Light-based spawn effect', status: 'pending', type: 'image', faction: 'light', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
   { id: 'combat-spawn-dark', stage: 'D', category: 'spell', subcategory: 'spawn', name: 'Spawn Dark', description: 'Dark-based spawn effect', status: 'pending', type: 'image', faction: 'dark', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview', version: 0, candidate_versions: [], asset_protected: false, retry_count: 0 },
   
@@ -209,8 +201,8 @@ export const COMBAT_SLICE_REQUIRED_IDS = [
   'voice-light-turn',
   'voice-dark-turn',
   'voice-battle',
-  'combat-hit-flash-light-medium',
-  'combat-hit-flash-dark-medium',
-  'combat-death-light',
-  'combat-death-dark',
+  'combat-hit-flash-light',
+  'combat-hit-flash-dark',
+  'combat-death-burst-light',
+  'combat-death-burst-dark',
 ];
