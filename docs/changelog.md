@@ -6,7 +6,37 @@ Format: `## [version or milestone] — YYYY-MM-DD`
 
 ---
 
+## [ARCHON-008 Export Readiness] — 2026-05-01
+
+### Added
+
+- **Export Eligibility Helpers** (`src/lib/exportEligibility.ts`) — Pure, testable functions: `isExportEligible`, `filterForCombatExport`, `getExportReadinessReport`, `getExportExclusionReason`, `getExportEligibilityRows`. No UI coupling.
+- **Export Eligibility Preview** (`src/features/export/ExportPanel.tsx`) — Unified operator table showing every asset's eligibility status and exclusion reason. Combat Slice Status summary bar (Total / Eligible / Excluded / Rejected / Pending). "✅ Combat Ready" badge when all 19 required IDs are eligible.
+- **Smoke Tests** — 3 new smoke test scripts: `008a` (33 assertions), `008b` (39 assertions), `008d` (54 assertions). Total suite: 723 assertions.
+
+### Modified
+
+- `src/lib/assetManifest.ts` — `COMBAT_SLICE_REQUIRED_IDS` updated: 4 stale IDs replaced with their modern equivalents. 7 zombie `INITIAL_ASSETS` records removed (no VFX catalog entries, superseded by 006D additions).
+- `src/features/export/ExportPanel.tsx` — Export Eligibility Preview table added (008B).
+
+### Documentation
+
+- `docs/archon-008c-export-readiness-issue-resolution-plan.md` — Cross-repo diagnosis of stale required-ID root cause.
+- `docs/release-archon-008-export-readiness.md` — Release snapshot for the full 008 series.
+- `docs/walkthrough-archon-008a.md` through `docs/walkthrough-archon-008e.md` — Milestone evidence receipts.
+
+### Protected (Unchanged)
+
+- `CombatPackManifest` interface — frozen
+- `COMBAT_PACK_SCHEMA_VERSION` — frozen
+- `WORKSHOP_STATE_SCHEMA_VERSION` — frozen
+- ZIP export/import behavior — frozen
+- `archon-game` — untouched
+
+---
+
 ## [ARCHON-007 Review Workflow] — 2026-05-01
+
 
 ### Added
 

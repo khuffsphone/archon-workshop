@@ -1,6 +1,6 @@
 # Current State Snapshot
 
-**Updated:** 2026-05-01 (after ARCHON-007C — Review Workflow complete)
+**Updated:** 2026-05-01 (after ARCHON-008D — Export Readiness complete)
 
 ---
 
@@ -13,11 +13,12 @@
 | `server.ts` | Patched. `POST /api/save-asset` now returns `403 Forbidden` if the canonical asset ID resolves to a protected (`asset_protected: true`) asset. All original endpoints preserved. |
 | `src/App.tsx` | ~500-line shell. Owns global state: assets, logs, progress, review handlers, tab navigation. Delegates all UI to feature panels. |
 | `src/features/generation/GenerationPanel.tsx` | `useGeneration` hook + UI — owns `handleGenerate`, `batchGenerate`, `expandLibrary`. |
-| `src/features/export/ExportPanel.tsx` | Owns full export, combat-pack export, import-pack, verify. Enforces version guard. |
+| `src/features/export/ExportPanel.tsx` | Owns full export, combat-pack export, import-pack, verify. Enforces version guard. **Export Eligibility Preview table added (008B):** unified single table, eligibility status badge, exclusion reason column, Combat Slice Status summary bar. |
 | `src/features/vfx/VFXWorkflowPanel.tsx` | VFX catalog browse, queue management, single/batch generation. Approve/Reject prop signatures include optional `note?: string`. |
 | `src/features/scenelab/SceneLabPanel.tsx` | Live arena preview, VFX checklist, per-asset Approve/Reject controls with review note input and 🔒 lock indicators. |
 | `src/features/dashboard/DashboardPanel.tsx` | **NEW (007C).** Approval Dashboard: live review summary counts, filterable review queue (Pending/Approved/Rejected/Protected/All), inline approve/reject, system logs. |
-| `src/lib/assetManifest.ts` | Extended: `CombatPackManifest` contract type, `COMBAT_SLICE_REQUIRED_IDS`, 10 combat VFX in `INITIAL_ASSETS`. |
+| `src/lib/assetManifest.ts` | Extended: `CombatPackManifest` contract type, `COMBAT_SLICE_REQUIRED_IDS` (19 entries, modern VFX IDs — updated 008D), `INITIAL_ASSETS` (zombie records removed in 008D). |
+| `src/lib/exportEligibility.ts` | **NEW (008A/008B).** Pure export eligibility helpers: `isExportEligible`, `filterForCombatExport`, `getExportReadinessReport`, `getExportExclusionReason`, `getExportEligibilityRows`. |
 | `src/lib/assetReview.ts` | **NEW (007A).** Pure, non-mutating review state transition helpers. |
 | `src/lib/reviewQueue.ts` | **NEW (007C).** Pure, non-mutating review queue helpers: `getReviewStats`, `filterAssetsByReviewStatus`, `identifyActionableAssets`. |
 | `src/lib/vfxCatalog.ts` | 12 combat VFX presets across 8 families and 3 factions. |
@@ -33,11 +34,14 @@
 |---|---|
 | `scripts/smoke-test-archon-006b.mjs` | 267 |
 | `scripts/smoke-test-archon-006c.mjs` | 221 |
-| `scripts/smoke-test-archon-006d.mjs` | 16 |
+| `scripts/smoke-test-archon-006d.mjs` | 11 |
 | `scripts/smoke-test-archon-006e.mjs` | 52 |
 | `scripts/smoke-test-archon-007a.mjs` | 36 |
 | `scripts/smoke-test-archon-007c.mjs` | 10 |
-| **Total** | **602** |
+| `scripts/smoke-test-archon-008a.mjs` | 33 |
+| `scripts/smoke-test-archon-008b.mjs` | 39 |
+| `scripts/smoke-test-archon-008d.mjs` | 54 |
+| **Total** | **723** |
 
 ### archon-game
 
@@ -70,6 +74,12 @@
 7. Approved assets are locked (`asset_protected: true`); server blocks overwrites with `403`
 8. Export approved asset pack as ZIP → import into `archon-game`
 
+### Export Readiness (008)
+
+9. Export tab → Export Eligibility Preview table — see which assets will ship and why
+10. Combat Slice Status badge shows "Combat Ready" (all 19 required IDs eligible) or "Not Ready"
+11. Exclusion reason column explains per-asset exclusions (pending / rejected / no-file)
+
 ---
 
 ## Protected Contracts
@@ -86,8 +96,8 @@
 
 ## Next Priority
 
-**ARCHON-008A — Game-Side Asset Integration**
+**ARCHON-009A — VFX Asset Generation Pass**
 
-Wire approved Workshop VFX assets into `archon-game`'s combat pack automatically. Eliminate the manual copy script.
+Trigger generation and review for the 4 modern required VFX IDs (`combat-hit-flash-light`, `combat-hit-flash-dark`, `combat-death-burst-light`, `combat-death-burst-dark`) so the Export Eligibility Preview reaches "Combat Ready" with real generated assets, not just matching required-ID alignment.
 
-See `docs/archon-007-known-limitations-and-roadmap.md` for the full roadmap.
+See `docs/release-archon-008-export-readiness.md` for the full next-milestone roadmap.
