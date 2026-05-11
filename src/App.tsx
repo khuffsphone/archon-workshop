@@ -13,7 +13,7 @@ import {
   WORKSHOP_STATE_SCHEMA_VERSION,
 } from './lib/workshopPersistence';
 import type { WorkshopUIState, ValidTab, GenerationPreset, ScenePresetKey } from './lib/workshopPersistence';
-import { applyReview } from './lib/assetReview';
+import { applyReview, updateNote } from './lib/assetReview';
 
 // ─── Worker Queue ─────────────────────────────────────────────────────────────
 
@@ -343,6 +343,20 @@ export default function App() {
     toast.info(`Asset ${assetId} rejected`);
   };
 
+  /**
+   * Updates only the review note on an approved/protected asset.
+   * Does NOT change status, asset_protected, path, or version fields.
+   * Used for ARCHON-010B-style metadata-only corrections.
+   */
+  const handleUpdateNote = (assetId: string, note: string) => {
+    setAssets(prev => {
+      const updated = prev.map(a => a.id === assetId ? updateNote(a, note) : a);
+      saveManifest(updated);
+      return updated;
+    });
+    toast.success(`Note updated for ${assetId}`);
+  };
+
   type GenerationAttemptResult = {
     id: string;
     ok: boolean;
@@ -444,6 +458,7 @@ export default function App() {
             onReviewNotesChange={setDashboardReviewNotes}
             onApprove={handleApprove}
             onReject={handleReject}
+            onUpdateNote={handleUpdateNote}
             onNavigate={setActiveTab}
           />
         )}

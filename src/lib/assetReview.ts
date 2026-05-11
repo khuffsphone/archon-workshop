@@ -19,6 +19,23 @@ export function applyReview(asset: Asset, decision: ReviewDecision): Asset {
 }
 
 /**
+ * Corrects the review note on an approved asset without changing its status,
+ * asset_protected flag, or any other field.
+ *
+ * Use this ONLY for metadata-only note corrections (e.g. ARCHON-010B remediation
+ * of a stale rejected-language note on an approved asset).
+ *
+ * Does NOT change status. Does NOT change asset_protected. Does NOT alter path or
+ * version fields. Safe to call on a protected approved asset.
+ */
+export function updateNote(asset: Asset, note: string): Asset {
+  return {
+    ...asset,
+    notes: note,
+  };
+}
+
+/**
  * Checks if an asset is eligible to be overwritten during generation.
  */
 export function isOverwriteEligible(asset: Asset | undefined): boolean {

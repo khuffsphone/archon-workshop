@@ -16,6 +16,8 @@ interface Props {
   onReviewNotesChange: (notes: Record<string, string>) => void;
   onApprove: (id: string, note?: string) => void;
   onReject: (id: string, note?: string) => void;
+  /** Updates only the note field on an approved/protected asset — does NOT change status. */
+  onUpdateNote: (id: string, note: string) => void;
   onNavigate: (tab: ValidTab) => void;
 }
 
@@ -27,12 +29,17 @@ export function DashboardPanel({
   onReviewNotesChange,
   onApprove,
   onReject,
+  onUpdateNote,
   onNavigate,
 }: Props) {
   const [filter, setFilter] = useState<ReviewFilterState>('pending');
+  // Track which approved cards have the remediation panel expanded
+  const [remediationOpen, setRemediationOpen] = useState<Record<string, boolean>>({});
+  // Track confirm-reject state per asset
+  const [rejectConfirm, setRejectConfirm] = useState<Record<string, boolean>>({});
 
   const stats = useMemo(() => getReviewStats(assets), [assets]);
-  
+
   // To avoid duplicates or confusion, the queue will show "actionable" assets by default
   // when 'pending' is selected (meaning they actually have a file to review).
   const visibleAssets = useMemo(() => {
@@ -45,6 +52,31 @@ export function DashboardPanel({
 
   const updateNote = (id: string, note: string) => {
     onReviewNotesChange({ ...reviewNotes, [id]: note });
+  };
+
+  const toggleRemediation = (id: string) => {
+    setRemediationOpen(prev => ({ ...prev, [id]: !prev[id] }));
+    // Reset confirm state when closing
+    setRejectConfirm(prev => ({ ...prev, [id]: false }));
+  };
+
+  const handleSaveNote = (asset: Asset) => {
+    const note = reviewNotes[asset.id] ?? asset.notes ?? '';
+    onUpdateNote(asset.id, note);
+    setRemediationOpen(prev => ({ ...prev, [asset.id]: false }));
+  };
+
+  const handleRemediationReject = (asset: Asset) => {
+    if (!rejectConfirm[asset.id]) {
+      // First click: ask for confirmation
+      setRejectConfirm(prev => ({ ...prev, [asset.id]: true }));
+      return;
+    }
+    // Second click: confirmed — proceed with rejection
+    const note = reviewNotes[asset.id] ?? asset.notes ?? '';
+    onReject(asset.id, note || undefined);
+    setRejectConfirm(prev => ({ ...prev, [asset.id]: false }));
+    setRemediationOpen(prev => ({ ...prev, [asset.id]: false }));
   };
 
   return (
@@ -113,8 +145,8 @@ export function DashboardPanel({
                 <div className="vfx-card" id={`dashboard-card-${asset.id}`}>
                   {/* Status Indicator */}
                   <div className="vfx-status-dot" style={{
-                    background: asset.status === 'approved' ? '#4ade80' : 
-                                asset.status === 'rejected' ? '#f87171' : 
+                    background: asset.status === 'approved' ? '#4ade80' :
+                                asset.status === 'rejected' ? '#f87171' :
                                 asset.status === 'generating' ? '#facc15' : '#888'
                   }} />
 
@@ -128,10 +160,10 @@ export function DashboardPanel({
 
                   {/* Preview */}
                   {asset.thumbnail_256 || asset.path ? (
-                    <img 
-                      src={asset.thumbnail_256 || asset.path} 
-                      alt={asset.id} 
-                      className="vfx-thumb" 
+                    <img
+                      src={asset.thumbnail_256 || asset.path}
+                      alt={asset.id}
+                      className="vfx-thumb"
                       style={{ height: '80px', objectFit: 'contain' }}
                     />
                   ) : (
@@ -172,6 +204,107 @@ export function DashboardPanel({
                           onClick={() => onReject(asset.id, reviewNotes[asset.id] ?? asset.notes)}
                         >Reject</button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* ── Remediation controls for approved assets ── */}
+                  {asset.status === 'approved' && (
+                    <div style={{ marginTop: 'auto', paddingTop: '8px', width: '100%' }}>
+                      <button
+                        id={`btn-dash-remediate-toggle-${asset.id}`}
+                        className="btn-sm"
+                        style={{
+                          width: '100%',
+                          background: remediationOpen[asset.id] ? '#374151' : 'transparent',
+                          border: '1px solid #4b5563',
+                          color: '#9ca3af',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => toggleRemediation(asset.id)}
+                        title="Open remediation controls to correct note or reject this approved asset"
+                      >
+                        {remediationOpen[asset.id] ? '▲ Close Remediation' : '⚙ Remediate'}
+                      </button>
+
+                      {remediationOpen[asset.id] && (
+                        <div
+                          id={`dash-remediation-panel-${asset.id}`}
+                          style={{
+                            marginTop: '6px',
+                            padding: '8px',
+                            background: '#1f2937',
+                            border: '1px solid #374151',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          {/* Note-only update */}
+                          <div style={{ marginBottom: '6px', fontSize: '0.72rem', color: '#6b7280' }}>
+                            Note correction (status unchanged):
+                          </div>
+                          <input
+                            id={`input-dash-remediate-note-${asset.id}`}
+                            type="text"
+                            placeholder="Corrected review note…"
+                            value={reviewNotes[asset.id] ?? asset.notes ?? ''}
+                            onChange={e => updateNote(asset.id, e.target.value)}
+                            className="review-note-input"
+                            style={{ width: '100%', marginBottom: '4px', fontSize: '0.8rem' }}
+                          />
+                          <button
+                            id={`btn-dash-save-note-${asset.id}`}
+                            className="btn-sm"
+                            style={{
+                              width: '100%',
+                              background: '#1d4ed8',
+                              color: '#fff',
+                              border: 'none',
+                              marginBottom: '8px',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => handleSaveNote(asset)}
+                          >
+                            Save Note (keep approved)
+                          </button>
+
+                          {/* Divider */}
+                          <div style={{ borderTop: '1px solid #374151', margin: '6px 0' }} />
+
+                          {/* Reject with confirmation guard */}
+                          <div style={{ marginBottom: '4px', fontSize: '0.72rem', color: '#6b7280' }}>
+                            Reject &amp; unprotect (enables regeneration):
+                          </div>
+                          {rejectConfirm[asset.id] ? (
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                id={`btn-dash-remediate-reject-confirm-${asset.id}`}
+                                className="btn-reject btn-sm"
+                                style={{ flex: 1, fontSize: '0.75rem' }}
+                                onClick={() => handleRemediationReject(asset)}
+                              >
+                                Confirm Reject
+                              </button>
+                              <button
+                                id={`btn-dash-remediate-reject-cancel-${asset.id}`}
+                                className="btn-sm"
+                                style={{ flex: 1, fontSize: '0.75rem', background: '#374151', border: 'none', color: '#d1d5db', cursor: 'pointer' }}
+                                onClick={() => setRejectConfirm(prev => ({ ...prev, [asset.id]: false }))}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              id={`btn-dash-remediate-reject-${asset.id}`}
+                              className="btn-reject btn-sm"
+                              style={{ width: '100%', fontSize: '0.75rem', opacity: 0.8 }}
+                              onClick={() => handleRemediationReject(asset)}
+                            >
+                              Reject (Remediation)
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
