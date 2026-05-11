@@ -1,0 +1,6 @@
+# Safe globs — ARCHON-OPS-001
+# Files matching these patterns are ordinary documentation with no runtime impact.
+# Control-plane files (scripts/, ci/, .agents/) are RISKY, not SAFE.
+# Operational evidence docs (docs/walkthrough-*.md) are RISKY via risky-globs.txt.
+# Precedence: BLOCKED > RISKY > SAFE > NOOP
+docs/**

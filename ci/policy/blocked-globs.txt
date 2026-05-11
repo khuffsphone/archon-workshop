@@ -1,0 +1,8 @@
+# Blocked globs — ARCHON-OPS-001
+# Files matching these patterns must never be staged without a freeze-list override.
+# Precedence: BLOCKED > RISKY > SAFE > NOOP
+src/lib/assetManifest.ts
+src/lib/versionGuard.ts
+public/generated/**
+public/exports/**
+**/*.zip

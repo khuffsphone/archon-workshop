@@ -1,0 +1,17 @@
+# Risky globs — ARCHON-OPS-001
+# Files matching these patterns require explicit review before staging.
+# Includes: runtime source, build config, and all control-plane files
+# (scripts, CI policy, agent rules, operational evidence docs).
+# Precedence: BLOCKED > RISKY > SAFE > NOOP
+src/**/*.ts
+src/**/*.tsx
+server.ts
+vite.config.*
+tsconfig*.json
+package.json
+package-lock.json
+.gitignore
+scripts/**
+ci/**
+.agents/**
+docs/walkthrough-*.md
