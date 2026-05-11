@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import type { Asset } from '../../lib/assetManifest';
 import { assertPackVersion, validatePackAssets } from '../../lib/versionGuard';
 import type { CombatPackManifest } from '../../lib/assetManifest';
@@ -10,7 +10,12 @@ import { validateWorkshopState, downloadWorkshopState, parseWorkshopStateFile } 
 import {
   getExportReadinessReport,
   getExportEligibilityRows,
+  applyPreviewFilter,
+  applyPreviewSort,
   type ExportEligibilityRow,
+  type ExportPreviewFilter,
+  type ExportPreviewSortKey,
+  type ExportPreviewSort,
 } from '../../lib/exportEligibility';
 
 interface Props {
@@ -246,12 +251,73 @@ const STATUS_COLORS: Record<string, string> = {
   recoverable_failed: '#fb923c',
 };
 
-function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
-  const rows = useMemo(() => getExportEligibilityRows(assets), [assets]);
-  const report = useMemo(() => getExportReadinessReport(assets, COMBAT_SLICE_REQUIRED_IDS), [assets]);
+// ── Filter helpers ─────────────────────────────────────────────────────────────
 
+const ALL_FILTER_KEYS: ExportPreviewFilter[] = [
+  'all', 'eligible', 'excluded', 'protected', 'rejected', 'missing_path',
+];
+
+const FILTER_LABELS: Record<ExportPreviewFilter, string> = {
+  all:          'All',
+  eligible:     'Eligible',
+  excluded:     'Excluded',
+  protected:    'Protected',
+  rejected:     'Rejected',
+  missing_path: 'Missing File',
+};
+
+function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
+  const allRows = useMemo(() => getExportEligibilityRows(assets), [assets]);
+  const report  = useMemo(() => getExportReadinessReport(assets, COMBAT_SLICE_REQUIRED_IDS), [assets]);
+
+  // ── Filter / sort state ────────────────────────────────────────────────────
+  const [filter, setFilter] = useState<ExportPreviewFilter>('all');
+  const [sort,   setSort]   = useState<ExportPreviewSort>({ key: 'id', direction: 'asc' });
+
+  const handleSortClick = (key: ExportPreviewSortKey) => {
+    setSort(prev =>
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    );
+  };
+
+  // ── Derived display rows ───────────────────────────────────────────────────
+  // Filtering and sorting operate on display rows only.
+  // The `assets` prop — and thus the actual export pipeline — is never mutated.
+  const displayRows = useMemo(() => {
+    const filtered = applyPreviewFilter(allRows, filter);
+    return applyPreviewSort(filtered, sort);
+  }, [allRows, filter, sort]);
+
+  // ── Conditional filter pills: only show if data exists ────────────────────
+  const hasRejected    = allRows.some(r => r.exclusionReason === 'rejected');
+  const hasMissingPath = allRows.some(r => r.exclusionReason === 'approved_no_path');
+  const visibleFilters = ALL_FILTER_KEYS.filter(f => {
+    if (f === 'rejected'     && !hasRejected)    return false;
+    if (f === 'missing_path' && !hasMissingPath) return false;
+    return true;
+  });
+
+  // ── Summary counts ─────────────────────────────────────────────────────────
   const ineligible = report.total - report.eligible;
-  const other = ineligible - report.rejected - report.pending;
+  const other      = ineligible - report.rejected - report.pending;
+
+  // ── Copy JSON Report ───────────────────────────────────────────────────────
+  const handleCopyReport = () => {
+    const payload = JSON.stringify(report, null, 2);
+    navigator.clipboard.writeText(payload).then(() => {
+      toast.success('Readiness report copied to clipboard');
+    }).catch(() => {
+      toast.error('Copy failed — clipboard unavailable');
+    });
+  };
+
+  // ── Sort indicator ─────────────────────────────────────────────────────────
+  const sortIcon = (key: ExportPreviewSortKey) => {
+    if (sort.key !== key) return <span style={{ color: '#444', marginLeft: '4px' }}>⇅</span>;
+    return <span style={{ color: '#94a3b8', marginLeft: '4px' }}>{sort.direction === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   return (
     <div className="panel-section" id="export-eligibility-preview">
@@ -264,14 +330,15 @@ function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
 
       {/* ── Summary banner ── */}
       <div style={{
-        display: 'flex', gap: '1rem', flexWrap: 'wrap',
-        marginBottom: '1rem', padding: '0.75rem 1rem',
+        display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center',
+        marginBottom: '0.75rem', padding: '0.75rem 1rem',
         background: 'rgba(255,255,255,0.04)', borderRadius: '8px',
         border: `1px solid ${report.combatReady ? '#4ade8033' : '#f8717133'}`,
       }}>
         <span id="eligibility-badge" style={{
           fontWeight: 700, fontSize: '1rem',
           color: report.combatReady ? '#4ade80' : '#fb923c',
+          marginRight: '0.25rem',
         }}>
           {report.combatReady ? '✅ Combat Ready' : '⚠️ Not Ready'}
         </span>
@@ -281,12 +348,24 @@ function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
         <span className="eligibility-stat">Rejected: <strong>{report.rejected}</strong></span>
         <span className="eligibility-stat">Pending: <strong>{report.pending}</strong></span>
         {other > 0 && <span className="eligibility-stat">Other: <strong>{other}</strong></span>}
+        <button
+          id="btn-copy-eligibility-report"
+          onClick={handleCopyReport}
+          title="Copy readiness report as JSON"
+          style={{
+            marginLeft: 'auto', padding: '3px 10px', fontSize: '0.72rem',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: '5px', color: '#94a3b8', cursor: 'pointer',
+          }}
+        >
+          Copy JSON Report
+        </button>
       </div>
 
       {/* ── Missing required IDs ── */}
       {report.missingRequired.length > 0 && (
         <div style={{
-          marginBottom: '1rem', padding: '0.5rem 0.75rem',
+          marginBottom: '0.75rem', padding: '0.5rem 0.75rem',
           background: 'rgba(251,146,60,0.08)', border: '1px solid #fb923c55',
           borderRadius: '6px', fontSize: '0.8rem', color: '#fb923c',
         }}>
@@ -295,9 +374,45 @@ function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
         </div>
       )}
 
+      {/* ── Filter pills ── */}
+      <div
+        id="eligibility-filter-bar"
+        role="group"
+        aria-label="Filter eligibility rows"
+        style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}
+      >
+        {visibleFilters.map(f => (
+          <button
+            key={f}
+            id={`eligibility-filter-${f}`}
+            onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
+            style={{
+              padding: '3px 11px', borderRadius: '20px', fontSize: '0.72rem',
+              cursor: 'pointer', fontWeight: filter === f ? 700 : 400,
+              background: filter === f ? 'rgba(148,163,184,0.2)' : 'rgba(255,255,255,0.04)',
+              border: filter === f ? '1px solid #94a3b8' : '1px solid rgba(255,255,255,0.1)',
+              color: filter === f ? '#e2e8f0' : '#94a3b8',
+              transition: 'all 0.15s',
+            }}
+          >
+            {FILTER_LABELS[f]}
+            {f !== 'all' && (
+              <span style={{ marginLeft: '5px', fontSize: '0.65rem', opacity: 0.7 }}>
+                ({applyPreviewFilter(allRows, f).length})
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* ── Per-asset table ── */}
-      {rows.length === 0 ? (
+      {allRows.length === 0 ? (
         <div style={{ color: '#888', fontSize: '0.85rem' }}>No assets in manifest yet.</div>
+      ) : displayRows.length === 0 ? (
+        <div style={{ color: '#888', fontSize: '0.85rem', padding: '0.5rem 0' }}>
+          No assets match the current filter.
+        </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table id="eligibility-table" style={{
@@ -306,17 +421,42 @@ function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
           }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', color: '#94a3b8' }}>
-                <th style={{ width: '26%', padding: '6px 4px' }}>Asset ID</th>
+                {/* Sortable headers */}
+                <th
+                  id="sort-header-id"
+                  style={{ width: '26%', padding: '6px 4px', cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSortClick('id')}
+                >
+                  Asset ID{sortIcon('id')}
+                </th>
                 <th style={{ width: '16%', padding: '6px 4px' }}>Category</th>
-                <th style={{ width: '10%', padding: '6px 4px' }}>Status</th>
+                <th
+                  id="sort-header-status"
+                  style={{ width: '10%', padding: '6px 4px', cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSortClick('status')}
+                >
+                  Status{sortIcon('status')}
+                </th>
                 <th style={{ width: '6%',  padding: '6px 4px', textAlign: 'center' }}>🔒</th>
                 <th style={{ width: '6%',  padding: '6px 4px', textAlign: 'center' }}>File</th>
-                <th style={{ width: '12%', padding: '6px 4px', textAlign: 'center' }}>Eligible</th>
-                <th style={{ width: '24%', padding: '6px 4px' }}>Exclusion Reason</th>
+                <th
+                  id="sort-header-eligible"
+                  style={{ width: '12%', padding: '6px 4px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSortClick('eligible')}
+                >
+                  Eligible{sortIcon('eligible')}
+                </th>
+                <th
+                  id="sort-header-reason"
+                  style={{ width: '24%', padding: '6px 4px', cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => handleSortClick('exclusionReason')}
+                >
+                  Exclusion Reason{sortIcon('exclusionReason')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, i) => (
+              {displayRows.map((row, i) => (
                 <tr
                   key={row.id}
                   id={`eligibility-row-${row.id}`}
@@ -354,6 +494,9 @@ function ExportEligibilityPreview({ assets }: { assets: Asset[] }) {
               ))}
             </tbody>
           </table>
+          <div style={{ marginTop: '0.4rem', fontSize: '0.7rem', color: '#64748b', textAlign: 'right' }}>
+            Showing {displayRows.length} of {allRows.length} assets
+          </div>
         </div>
       )}
     </div>

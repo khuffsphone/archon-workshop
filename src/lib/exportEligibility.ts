@@ -142,3 +142,77 @@ export function getExportEligibilityRows(assets: Asset[]): ExportEligibilityRow[
   }));
 }
 
+// ─── Preview Filter ───────────────────────────────────────────────────────────
+// ARCHON-009C: Pure helpers for the Export Eligibility Preview UI filter and
+// sort controls. These operate on display rows only and do NOT affect the
+// actual export pipeline.
+
+/**
+ * Filter categories available in the Export Eligibility Preview.
+ * 'all'          — show every row
+ * 'eligible'     — show only assets that will ship
+ * 'excluded'     — show only assets that will NOT ship
+ * 'protected'    — show only asset_protected assets
+ * 'rejected'     — show only operator-rejected assets
+ * 'missing_path' — show only approved assets with no file generated yet
+ */
+export type ExportPreviewFilter =
+  | 'all'
+  | 'eligible'
+  | 'excluded'
+  | 'protected'
+  | 'rejected'
+  | 'missing_path';
+
+/**
+ * Returns the subset of rows matching the requested filter.
+ * Input array is not mutated.
+ */
+export function applyPreviewFilter(
+  rows: ExportEligibilityRow[],
+  filter: ExportPreviewFilter,
+): ExportEligibilityRow[] {
+  switch (filter) {
+    case 'all':          return rows;
+    case 'eligible':     return rows.filter(r => r.eligible);
+    case 'excluded':     return rows.filter(r => !r.eligible);
+    case 'protected':    return rows.filter(r => r.isProtected);
+    case 'rejected':     return rows.filter(r => r.exclusionReason === 'rejected');
+    case 'missing_path': return rows.filter(r => r.exclusionReason === 'approved_no_path');
+    default:             return rows;
+  }
+}
+
+// ─── Preview Sort ─────────────────────────────────────────────────────────────
+
+/** Sortable columns in the Export Eligibility Preview table. */
+export type ExportPreviewSortKey = 'id' | 'status' | 'eligible' | 'exclusionReason';
+
+export interface ExportPreviewSort {
+  key: ExportPreviewSortKey;
+  direction: 'asc' | 'desc';
+}
+
+/**
+ * Returns a new sorted array of rows. Input array is not mutated.
+ * String columns sorted lexicographically; boolean columns sorted true-first on asc.
+ */
+export function applyPreviewSort(
+  rows: ExportEligibilityRow[],
+  sort: ExportPreviewSort,
+): ExportEligibilityRow[] {
+  const { key, direction } = sort;
+  const mul = direction === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = a[key];
+    const bv = b[key];
+    if (typeof av === 'boolean' && typeof bv === 'boolean') {
+      // true (eligible/protected) sorts first on 'asc'
+      return av === bv ? 0 : (av ? -1 : 1) * mul;
+    }
+    const as = String(av ?? '');
+    const bs = String(bv ?? '');
+    return as.localeCompare(bs) * mul;
+  });
+}
+
