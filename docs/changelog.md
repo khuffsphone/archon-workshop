@@ -6,6 +6,45 @@ Format: `## [version or milestone] — YYYY-MM-DD`
 
 ---
 
+## [ARCHON-010 VFX Remediation] — 2026-05-12
+
+### Added
+
+- **`updateNote` helper** (`src/lib/assetReview.ts`) — Pure, non-mutating function that updates only the `notes` field on an asset without touching status, protection, or version fields (010B).
+- **Dashboard Remediation Panel** (`src/features/dashboard/DashboardPanel.tsx`) — Collapsible `⚙ Remediate` toggle per card in the Approved filter. Exposes a `Save Note (keep approved)` path and a two-click `Reject (Remediation)` path that clears `asset_protected` and sets status to `rejected`, unblocking the asset for future regeneration (010B).
+- **Approve Latest Candidate UI** (`src/features/dashboard/DashboardPanel.tsx`) — New `hasApprovableCandidate` guard helper and `handleApproveLatest` two-click handler. Renders `Approve Latest Candidate (v{N})` button with candidate thumbnail preview for any `rejected` asset whose latest candidate version is newer than its `approved_version` (010G).
+- **Smoke Tests** — 2 new smoke test scripts: `010b` (39 assertions), `010g` (8 assertions). Cumulative suite: **770 assertions**.
+
+### Modified
+
+- `src/features/dashboard/DashboardPanel.tsx` — Remediation panel (010B) + Approve Latest Candidate panel (010G).
+- `src/App.tsx` — Added `handleUpdateNote`, wired to `DashboardPanel.onUpdateNote` (010B).
+
+### Runtime State Changes (gitignored, not committed)
+
+- `combat-hit-flash-dark` — `notes` field corrected; status remains `approved` / `asset_protected: true` (010C).
+- `combat-heal-pulse` — Rejected (010C), v2 generated (010F), approved via new UI (010G). Now `status: approved`, `asset_protected: true`, active path points to v2.
+- `combat-ambient-arena` — Rejected (010C), v2 generated (010F), approved via new UI (010G). Now `status: approved`, `asset_protected: true`, active path points to v2.
+
+### Security
+
+- `GEMINI_API_KEY` rotated during 010E after a key value was inadvertently pasted in chat. Replacement key verified via read-only API probe. `.env` remains gitignored.
+
+### Documentation
+
+- `docs/walkthrough-archon-010a.md` through `docs/walkthrough-archon-010g.md` — Per-milestone evidence receipts.
+- `docs/release-archon-010-vfx-remediation.md` — This release snapshot.
+
+### Protected (Unchanged)
+
+- `CombatPackManifest` interface — frozen
+- `COMBAT_PACK_SCHEMA_VERSION` — frozen
+- `WORKSHOP_STATE_SCHEMA_VERSION` — frozen
+- ZIP export/import behavior — frozen
+- `archon-game` — untouched
+
+---
+
 ## [ARCHON-008 Export Readiness] — 2026-05-01
 
 ### Added
