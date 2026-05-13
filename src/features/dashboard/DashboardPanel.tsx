@@ -37,6 +37,8 @@ export function DashboardPanel({
   const [remediationOpen, setRemediationOpen] = useState<Record<string, boolean>>({});
   // Track confirm-reject state per asset
   const [rejectConfirm, setRejectConfirm] = useState<Record<string, boolean>>({});
+  // Track confirm-approve-latest state per asset
+  const [approveConfirm, setApproveConfirm] = useState<Record<string, boolean>>({});
 
   const stats = useMemo(() => getReviewStats(assets), [assets]);
 
@@ -77,6 +79,28 @@ export function DashboardPanel({
     onReject(asset.id, note || undefined);
     setRejectConfirm(prev => ({ ...prev, [asset.id]: false }));
     setRemediationOpen(prev => ({ ...prev, [asset.id]: false }));
+  };
+
+  /**
+   * Returns true when a rejected asset has a newer candidate version available
+   * for operator approval — i.e. it has been regenerated since its last rejection.
+   */
+  const hasApprovableCandidate = (asset: Asset): boolean => {
+    if (asset.status !== 'rejected') return false;
+    const versions = asset.candidate_versions ?? [];
+    if (versions.length < 2) return false;
+    const latest = versions[versions.length - 1];
+    return (latest?.version ?? 0) > (asset.approved_version ?? 0);
+  };
+
+  const handleApproveLatest = (asset: Asset) => {
+    if (!approveConfirm[asset.id]) {
+      setApproveConfirm(prev => ({ ...prev, [asset.id]: true }));
+      return;
+    }
+    const note = reviewNotes[asset.id] ?? asset.notes ?? '';
+    onApprove(asset.id, note || undefined);
+    setApproveConfirm(prev => ({ ...prev, [asset.id]: false }));
   };
 
   return (
@@ -204,6 +228,63 @@ export function DashboardPanel({
                           onClick={() => onReject(asset.id, reviewNotes[asset.id] ?? asset.notes)}
                         >Reject</button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* ── Approve latest candidate for rejected assets ── */}
+                  {hasApprovableCandidate(asset) && (
+                    <div
+                      id={`dash-approve-latest-panel-${asset.id}`}
+                      style={{ marginTop: 'auto', paddingTop: '8px', width: '100%' }}
+                    >
+                      <div style={{ marginBottom: '4px', fontSize: '0.72rem', color: '#6b7280' }}>
+                        Approve new candidate (v{asset.candidate_versions[asset.candidate_versions.length - 1].version}):
+                      </div>
+                      {asset.candidate_versions[asset.candidate_versions.length - 1].thumbnail_256 && (
+                        <img
+                          src={asset.candidate_versions[asset.candidate_versions.length - 1].thumbnail_256}
+                          alt={`${asset.id} latest candidate`}
+                          style={{ width: '100%', height: '64px', objectFit: 'contain', marginBottom: '4px', background: '#0d1117', borderRadius: '2px' }}
+                        />
+                      )}
+                      <input
+                        id={`input-dash-approve-latest-note-${asset.id}`}
+                        type="text"
+                        placeholder="Approval note…"
+                        value={reviewNotes[asset.id] ?? asset.notes ?? ''}
+                        onChange={e => updateNote(asset.id, e.target.value)}
+                        className="review-note-input"
+                        style={{ width: '100%', marginBottom: '4px', fontSize: '0.8rem' }}
+                      />
+                      {approveConfirm[asset.id] ? (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            id={`btn-dash-approve-latest-confirm-${asset.id}`}
+                            className="btn-approve btn-sm"
+                            style={{ flex: 1, fontSize: '0.75rem' }}
+                            onClick={() => handleApproveLatest(asset)}
+                          >
+                            Confirm Approve v{asset.candidate_versions[asset.candidate_versions.length - 1].version}
+                          </button>
+                          <button
+                            id={`btn-dash-approve-latest-cancel-${asset.id}`}
+                            className="btn-sm"
+                            style={{ flex: 1, fontSize: '0.75rem', background: '#374151', border: 'none', color: '#d1d5db', cursor: 'pointer' }}
+                            onClick={() => setApproveConfirm(prev => ({ ...prev, [asset.id]: false }))}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          id={`btn-dash-approve-latest-${asset.id}`}
+                          className="btn-approve btn-sm"
+                          style={{ width: '100%', fontSize: '0.75rem' }}
+                          onClick={() => handleApproveLatest(asset)}
+                        >
+                          Approve Latest Candidate (v{asset.candidate_versions[asset.candidate_versions.length - 1].version})
+                        </button>
+                      )}
                     </div>
                   )}
 
