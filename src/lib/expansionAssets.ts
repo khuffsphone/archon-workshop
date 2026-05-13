@@ -57,6 +57,8 @@ export const EXPANSION_ASSETS: Partial<Asset>[] = [
   { id: 'fx-shadow-pulse', stage: 'D', category: 'spell', name: 'FX Shadow Pulse', description: 'Visual effect for dark pulse', type: 'image', model_id: 'gemini-3.1-flash-image-preview' },
   { id: 'fx-holy-flare', stage: 'D', category: 'spell', name: 'FX Holy Flare', description: 'Visual effect for light flare', type: 'image', model_id: 'gemini-3.1-flash-image-preview' },
   { id: 'fx-poison', stage: 'D', category: 'spell', name: 'FX Poison', description: 'Visual effect for poison/acid', type: 'image', model_id: 'gemini-3.1-flash-image-preview' },
+  { id: 'combat-projectile-light', stage: 'D', category: 'spell', subcategory: 'projectile', name: 'Projectile Light', description: 'Sacred golden bolt fired by a Light faction ranged unit', type: 'image', faction: 'light', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview' },
+  { id: 'combat-projectile-dark', stage: 'D', category: 'spell', subcategory: 'projectile', name: 'Projectile Dark', description: 'Shadow void bolt fired by a Dark faction ranged unit', type: 'image', faction: 'dark', requiresCutout: true, model_id: 'gemini-3.1-flash-image-preview' },
 
   // UI
   { id: 'ui-button-hover', stage: 'E', category: 'ui', name: 'UI Button Hover', description: 'Button hover state', type: 'image', model_id: 'gemini-3.1-flash-image-preview' },
