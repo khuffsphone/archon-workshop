@@ -17,14 +17,17 @@
  *  11. Importing EXPANSION_ASSETS does not mutate the exported array
  *  12. Runtime manifest contains combat-projectile-light after Expand Library
  *  13. Runtime manifest contains combat-projectile-dark after Expand Library
- *  14. Seeded combat-projectile-light has status field present
- *  15. Seeded combat-projectile-light has asset_protected: false
- *  16. Seeded combat-projectile-light has no generated path
- *  17. Seeded combat-projectile-light has no candidate versions
- *  18. Seeded combat-projectile-dark has status field present
- *  19. Seeded combat-projectile-dark has asset_protected: false
- *  20. Seeded combat-projectile-dark has no generated path
- *  21. Seeded combat-projectile-dark has no candidate versions
+ *  14. combat-projectile-light has status field present in manifest
+ *  15. combat-projectile-light is approved and asset_protected: true (post-ARCHON-011B)
+ *  16. combat-projectile-light has a generated path (post-ARCHON-011B)
+ *  17. combat-projectile-light has at least one candidate version (post-ARCHON-011B)
+ *  18. combat-projectile-dark has status field present in manifest
+ *  19. combat-projectile-dark is approved and asset_protected: true (post-ARCHON-011B)
+ *  20. combat-projectile-dark has a generated path (post-ARCHON-011B)
+ *  21. combat-projectile-dark has at least one candidate version (post-ARCHON-011B)
+ *
+ * NOTE: Suite 8 assertions 15-17 and 19-21 were updated in ARCHON-011B to reflect
+ * the post-generation approved state. Originally they asserted pending/ungenerated state.
  *
  * Run: node --import=tsx/esm scripts/smoke-test-archon-011a.mjs
  * No server required. Reads manifest from disk.
@@ -185,9 +188,12 @@ assert(
   EXPANSION_ASSETS.some(a => a.id === DARK_ID),
 );
 
-// ── Suite 8: Runtime Manifest State ──────────────────────────────────────────
+// ── Suite 8: Runtime Manifest State (post-ARCHON-011B) ───────────────────────
+// NOTE: These assertions were updated in ARCHON-011B. Originally they validated
+// the seeded-but-ungenerated state. Now they validate the post-generation
+// approved state after both projectile VFX assets were generated.
 
-console.log('\n── Suite 8: Runtime manifest seeded state ──');
+console.log('\n── Suite 8: Runtime manifest state (post-generation) ──');
 
 let manifest;
 try {
@@ -211,50 +217,50 @@ assert(
   darkRecord !== undefined,
 );
 
-// Per-field assertions for light
+// Per-field assertions for light (post-ARCHON-011B: approved, protected, path present)
 assert(
-  'seeded combat-projectile-light has status field present',
+  'combat-projectile-light has status field present in manifest',
   lightRecord !== undefined && typeof lightRecord.status === 'string',
 );
 
 assert(
-  'seeded combat-projectile-light has asset_protected: false',
-  lightRecord !== undefined && lightRecord.asset_protected === false,
+  'combat-projectile-light is approved and asset_protected: true (post-ARCHON-011B)',
+  lightRecord !== undefined && lightRecord.status === 'approved' && lightRecord.asset_protected === true,
 );
 
 assert(
-  'seeded combat-projectile-light has no generated path (path absent or null)',
-  lightRecord !== undefined && (lightRecord.path === undefined || lightRecord.path === null),
+  'combat-projectile-light has a generated path (post-ARCHON-011B)',
+  lightRecord !== undefined && typeof lightRecord.path === 'string' && lightRecord.path.length > 0,
 );
 
 assert(
-  'seeded combat-projectile-light has no candidate versions (empty array)',
+  'combat-projectile-light has at least one candidate version (post-ARCHON-011B)',
   lightRecord !== undefined &&
   Array.isArray(lightRecord.candidate_versions) &&
-  lightRecord.candidate_versions.length === 0,
+  lightRecord.candidate_versions.length >= 1,
 );
 
-// Per-field assertions for dark
+// Per-field assertions for dark (post-ARCHON-011B: approved, protected, path present)
 assert(
-  'seeded combat-projectile-dark has status field present',
+  'combat-projectile-dark has status field present in manifest',
   darkRecord !== undefined && typeof darkRecord.status === 'string',
 );
 
 assert(
-  'seeded combat-projectile-dark has asset_protected: false',
-  darkRecord !== undefined && darkRecord.asset_protected === false,
+  'combat-projectile-dark is approved and asset_protected: true (post-ARCHON-011B)',
+  darkRecord !== undefined && darkRecord.status === 'approved' && darkRecord.asset_protected === true,
 );
 
 assert(
-  'seeded combat-projectile-dark has no generated path (path absent or null)',
-  darkRecord !== undefined && (darkRecord.path === undefined || darkRecord.path === null),
+  'combat-projectile-dark has a generated path (post-ARCHON-011B)',
+  darkRecord !== undefined && typeof darkRecord.path === 'string' && darkRecord.path.length > 0,
 );
 
 assert(
-  'seeded combat-projectile-dark has no candidate versions (empty array)',
+  'combat-projectile-dark has at least one candidate version (post-ARCHON-011B)',
   darkRecord !== undefined &&
   Array.isArray(darkRecord.candidate_versions) &&
-  darkRecord.candidate_versions.length === 0,
+  darkRecord.candidate_versions.length >= 1,
 );
 
 // ── Summary ───────────────────────────────────────────────────────────────────
