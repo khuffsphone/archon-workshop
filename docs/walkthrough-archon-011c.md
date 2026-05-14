@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-14
 **Task:** ARCHON-011C — Export Readiness Inspection and Game Sync Confirmation
-**Status:** Complete — docs-only milestone
+**Status:** Complete — docs-only milestone — committed `98881be` — pushed to `origin/main`
 
 ---
 
@@ -401,11 +401,14 @@ docs/walkthrough-archon-011c.md
 ## 19. Commit Hash
 
 ```
-<filled after commit>
+98881be docs: ARCHON-011C -- export/game sync readiness inspection -- no sync needed
 ```
 
 ## 20. Pushed
 
 ```
-<filled after push>
+To https://github.com/khuffsphone/archon-workshop.git
+   8b333ba..98881be  main -> main
 ```
+
+Pushed: yes — `origin/main`
