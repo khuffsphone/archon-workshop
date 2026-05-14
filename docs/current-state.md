@@ -1,6 +1,6 @@
 # Current State Snapshot
 
-**Updated:** 2026-05-12 (after ARCHON-010G — VFX Remediation Complete)
+**Updated:** 2026-05-14 (after ARCHON-011C — Projectile Export/Sync Confirmation)
 
 ---
 
@@ -38,8 +38,10 @@
 | `combat-death-burst-dark` | `approved` | 🔒 | v1 | ✅ Yes |
 | `combat-heal-pulse` | `approved` | 🔒 | **v2** | ✅ Yes |
 | `combat-ambient-arena` | `approved` | 🔒 | **v2** | ✅ Yes |
+| `combat-projectile-light` | `approved` | 🔒 | v1 | ✅ Yes |
+| `combat-projectile-dark` | `approved` | 🔒 | v1 | ✅ Yes |
 
-All six combat VFX targets are approved and export-eligible.
+All eight combat VFX assets are approved and export-eligible. Export Eligibility Preview reports **Combat Ready** (all 19 `COMBAT_SLICE_REQUIRED_IDS` satisfied, 246/247 assets eligible).
 
 ### Smoke Test Coverage
 
@@ -58,7 +60,8 @@ All six combat VFX targets are approved and export-eligible.
 | `scripts/smoke-test-archon-009c.mjs` | 37 |
 | `scripts/smoke-test-archon-010b.mjs` | 39 |
 | `scripts/smoke-test-archon-010g.mjs` | 8 |
-| **Total** | **936** |
+| `scripts/smoke-test-archon-011a.mjs` | 26 |
+| **Total** | **962** |
 
 ### archon-game
 
@@ -69,9 +72,11 @@ All six combat VFX targets are approved and export-eligible.
 | `src/lib/packLoader.ts` | Schema version check, asset URL resolution. |
 | `src/features/combat/CombatEngine.ts` | Pure TS state machine. Knight 20 HP vs Sorceress 16 HP. Turn alternation. |
 | `src/features/combat/CombatScene.tsx` | Arena + unit tokens + turn banner + HP bars + victory banner + rematch. |
-| `src/combat-pack-manifest.json` | Seeded with expected approved asset paths. **Not yet updated to reflect v2 paths for `combat-heal-pulse` and `combat-ambient-arena`.** |
+| `src/combat-pack-manifest.json` | Seeded with expected approved asset paths. **Not yet updated to reflect v2 paths for `combat-heal-pulse` and `combat-ambient-arena`.** Projectile IDs not present (not yet referenced by game). |
 
 > **Note:** `archon-game` has not been touched since ARCHON-006. Approved Workshop assets are not yet automatically wired into the game. Manual export + copy script required. See `docs/archon-009b-game-asset-sync-runbook.md`.
+>
+> **ARCHON-011C finding:** `combat-projectile-light` and `combat-projectile-dark` are **not referenced** by `CombatScene.tsx` or any game component. Copying assets without a corresponding `CombatScene.tsx` implementation would produce dead binary files. A sync is deferred to ARCHON-012 (game VFX implementation milestone).
 
 ---
 
@@ -115,10 +120,19 @@ All six combat VFX targets are approved and export-eligible.
 
 ## Next Priority
 
-**Combat Pack Export Validation**
+**ARCHON-012 — Game VFX: Add Projectile Combat Effects to CombatScene**
 
-Trigger an export ZIP and confirm that all six approved VFX assets are included with correct paths and hashes — particularly that `combat-heal-pulse` and `combat-ambient-arena` appear with their v2 paths.
+Both `combat-projectile-light` and `combat-projectile-dark` are approved, export-eligible, and will ship in the next `Export Combat Pack` ZIP. However, the game (`CombatScene.tsx`) does not yet call `getAssetUrl()` for either ID. The correct unlock sequence is:
 
-Optionally follow with a game manifest sync (see `docs/archon-009b-game-asset-sync-runbook.md`) to bring `archon-game/public/combat-pack-manifest.json` up to date with the v2 approvals.
+1. Design when/how projectile VFX fire in combat (ranged attack event? spell cast?)
+2. Add `getAssetUrl('combat-projectile-light')` / `'combat-projectile-dark'` calls to `CombatScene.tsx`
+3. Add both IDs to `COMBAT_SLICE_REQUIRED_IDS` (freeze-list acknowledgment required for `assetManifest.ts`)
+4. Add them to the game's required ID list for `validatePack()`
+5. Run the sync runbook: copy assets, export ZIP, replace `combat-pack-manifest.json` wholesale
+6. Commit game-side changes after `npm run lint` + 552 tests pass
 
-See `docs/release-archon-010-vfx-remediation.md` for the full ARCHON-010 next-steps roadmap.
+**Deferred sync items (bundle with ARCHON-012 or separate milestone):**
+- `combat-heal-pulse` v2 hash mismatch: game has v1 hash `8b71479b…`, workshop has v2 hash `ce72b3fb…`
+- `combat-ambient-arena` v2 hash mismatch: game has v1 hash `db451dc5…`, workshop has v2 hash `ebfb41d0…`
+
+See `docs/archon-009b-game-asset-sync-runbook.md` for the step-by-step sync procedure.
